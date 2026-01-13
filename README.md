@@ -13,3 +13,51 @@ It contains certain security specific configuration files
 ## Contributing
 
 If you have suggestions or improvements for this template, please feel free to submit a merge request.
+# Snowflake Development Environment
+
+Onboarding setup for Snowflake development tools in Cursor IDE.
+
+## What's Included
+
+**After running the setup script**, you get:
+- **MCP Server** - Query Snowflake directly from chat (**global** - works in any project)
+- **SnowSQL** - Command-line interface for Snowflake
+
+**When you open this project in Cursor**, you also get:
+- **Team Rules** - Snowflake development standards (project-level)
+- **Cursor Commands** - Development workflow helpers (project-level)
+
+## Prerequisites
+
+- [ ] **Homebrew** (macOS)
+  ```bash
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  ```
+- [ ] **Snowflake account access**
+- [ ] **Programmatic Access Token (PAT)** from Snowflake
+
+## Quick Start
+
+```bash
+./scripts/setup-snowflake-mcp.sh
+```
+
+This will install and configure:
+- **Global MCP** - `~/.cursor/mcp.json` (works in any project)
+- **uv** - Python package manager for MCP server
+- **SnowSQL** - Snowflake command-line interface
+- **Credentials** - Connection configs for both tools
+
+After running the script, **restart Cursor** and you can use Snowflake MCP in **any directory**.
+
+## Documentation
+
+See [docs/mcp-snowflake-setup.md](docs/mcp-snowflake-setup.md) for detailed setup instructions.
+
+## Environment Switching
+
+| Environment | MCP (Cursor) | SnowSQL |
+|-------------|--------------|---------|
+| Development | `snowflake-default` | `snowsql -c default` |
+| Staging | `snowflake-staging` | `snowsql -c staging` |
+| Production | `snowflake-prod` | `snowsql -c prod` |

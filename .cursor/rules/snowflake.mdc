@@ -1,0 +1,33 @@
+---
+description: Snowflake development standards and MCP usage guidelines
+alwaysApply: true
+---
+
+# Snowflake Development Rules
+
+## MCP Server Usage
+
+- Use the `snowflake-default` MCP server for querying Snowflake data
+- For multi-environment setups, configure additional servers (staging, prod) in `.cursor/mcp.json`
+- Always verify which environment you're connected to before running queries
+
+## Credentials
+
+- Never commit credentials to the repository
+- Use `~/.snowflake/connections.toml` for MCP credentials
+- Use `~/.snowsql/config` for SnowSQL credentials
+- Use Programmatic Access Tokens (PAT), not passwords
+
+## SQL Best Practices
+
+- Always specify database and schema in queries
+- Use role-based access control (RBAC)
+- Prefer read-only roles for production queries
+- Test queries in development before running in production
+
+## Setup
+
+If MCP tools are not available, run:
+```bash
+./scripts/setup-snowflake-mcp.sh
+```

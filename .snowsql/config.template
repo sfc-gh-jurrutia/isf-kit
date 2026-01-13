@@ -1,0 +1,62 @@
+# SnowSQL Configuration Template
+# Copy this file to ~/.snowsql/config and fill in your credentials
+#
+# Documentation: https://docs.snowflake.com/en/user-guide/snowsql-config
+#
+# Usage: snowsql -c <connection_name>
+#   snowsql -c default
+#   snowsql -c staging
+#   snowsql -c prod
+
+# ==============================================================================
+# DEFAULT CONNECTION (Development/Sandbox)
+# ==============================================================================
+[connections.default]
+accountname = <YOUR_ACCOUNT_IDENTIFIER>
+username = <YOUR_USERNAME>
+password = <YOUR_PAT_TOKEN>
+warehousename = SANDBOX_WH
+dbname = SANDBOX_DB
+schemaname = SANDBOX_SCHEMA
+rolename = DATA_ANALYST
+# Or use MCP_READONLY for maximum security (see docs)
+
+# ==============================================================================
+# ADDITIONAL CONNECTIONS (Uncomment and configure as needed)
+# ==============================================================================
+
+# Staging Connection
+# [connections.staging]
+# accountname = <STAGING_ACCOUNT_IDENTIFIER>
+# username = <YOUR_USERNAME>
+# password = <YOUR_PAT_TOKEN>
+# warehousename = STAGING_WH
+# dbname = STAGING_DB
+# schemaname = PUBLIC
+# rolename = DATA_ENGINEER
+
+# Production Connection (Use read-only role for safety)
+# [connections.prod]
+# accountname = <PROD_ACCOUNT_IDENTIFIER>
+# username = <YOUR_USERNAME>
+# password = <YOUR_PAT_TOKEN>
+# warehousename = PROD_WH
+# dbname = PROD_DB
+# schemaname = PUBLIC
+# rolename = ANALYST
+
+# ==============================================================================
+# SNOWSQL OPTIONS
+# ==============================================================================
+[options]
+# Auto-upgrade is disabled by default (recommended for stability)
+noup = True
+
+# Output format: table, csv, tsv, json, etc.
+output_format = table
+
+# Prompt format
+prompt_format = [#FFFFFF][user]@[account]/[database]/[schema]>
+
+# Log file location
+log_file = ~/.snowsql/log

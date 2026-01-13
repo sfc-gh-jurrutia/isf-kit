@@ -1,14 +1,10 @@
-# Created by .ignore support plugin (hsz.mobi)
-### Python template
-# Byte-compiled / optimized / DLL files
+# =============================================================================
+# Python
+# =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -26,11 +22,15 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-packages/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.env.local
 
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
 
@@ -38,99 +38,121 @@ packages/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Unit test / coverage
 htmlcov/
 .tox/
+.nox/
 .coverage
 .coverage.*
-.cache
 nosetests.xml
 coverage.xml
 *.cover
+*.py,cover
 .hypothesis/
 .pytest_cache/
+pytest_cache/
 
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-.static_storage/
-.media/
-local_settings.py
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# pyenv
-.python-version
-
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-.envrc
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-.functestenv/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-
-# MacOS
+# =============================================================================
+# macOS
+# =============================================================================
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
 
-# IntelliJ
-*.iml
-
-# Pycharm
-.idea/
-
-# pytest
-.pytest_cache
-
-#VSCode
-.vscode/
-
-# test file
-test-secret-files.json
-
-# cache
-.cache_ggshield
+# =============================================================================
+# Windows
+# =============================================================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
 *.msi
+*.msix
+*.msm
+*.msp
+*.lnk
 
-# terraform
-*/.terraform
-.terraform.lock.hcl
+# =============================================================================
+# Linux / Editors (backup files)
+# =============================================================================
+*~
+.fuse_hidden*
+.Trash-*
+.nfs*
+
+# =============================================================================
+# IDEs and Editors
+# =============================================================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains (PyCharm, etc.)
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Vim
+*.swp
+*.swo
+*.swn
+
+# Emacs
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# =============================================================================
+# Environment and Secrets
+# =============================================================================
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+secrets.yaml
+secrets.json
+
+# =============================================================================
+# Snowflake Credentials (NOT templates)
+# =============================================================================
+.snowflake/connections.toml
+.snowsql/config
+.mcp/.env
+
+# =============================================================================
+# Logs and Databases
+# =============================================================================
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# =============================================================================
+# Misc
+# =============================================================================
+*.bak
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/

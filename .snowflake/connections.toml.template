@@ -1,0 +1,67 @@
+# Snowflake Connections Configuration Template
+# Copy this file to ~/.snowflake/connections.toml and fill in your credentials
+#
+# For more info: https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect
+#
+# Usage: Reference connections by name with --connection-name <name>
+#   uvx snowflake-labs-mcp --service-config-file ~/.mcp/tools_config.yaml --connection-name default
+
+# ==============================================================================
+# DEFAULT CONNECTION (Development/Sandbox)
+# ==============================================================================
+[default]
+account = "<YOUR_ACCOUNT_IDENTIFIER>"
+user = "<YOUR_USERNAME>"
+password = "<YOUR_PAT_TOKEN>"  # Use a Programmatic Access Token, not your regular password
+warehouse = "SANDBOX_WH"
+database = "SANDBOX_DB"
+schema = "SANDBOX_SCHEMA"
+role = "DATA_ANALYST"  # Or use "MCP_READONLY" for maximum security (see docs)
+
+# ==============================================================================
+# ADDITIONAL ACCOUNTS (Uncomment and configure as needed)
+# ==============================================================================
+
+# Development Account
+# [dev]
+# account = "<YOUR_ACCOUNT_IDENTIFIER>"
+# user = "<YOUR_USERNAME>"
+# password = "<YOUR_PAT_TOKEN>"
+# warehouse = "DEV_WH"
+# database = "DEV_DB"
+# schema = "PUBLIC"
+# role = "DEVELOPER"
+
+# Staging Account
+# [staging]
+# account = "<STAGING_ACCOUNT_IDENTIFIER>"
+# user = "<YOUR_USERNAME>"
+# password = "<YOUR_PAT_TOKEN>"
+# warehouse = "STAGING_WH"
+# database = "STAGING_DB"
+# schema = "PUBLIC"
+# role = "DATA_ENGINEER"
+
+# Production Account (Read-Only recommended)
+# [prod]
+# account = "<PROD_ACCOUNT_IDENTIFIER>"
+# user = "<YOUR_USERNAME>"
+# password = "<YOUR_PAT_TOKEN>"
+# warehouse = "PROD_WH"
+# database = "PROD_DB"
+# schema = "PUBLIC"
+# role = "ANALYST"  # Use a read-only role for safety
+
+# ==============================================================================
+# KEY PAIR AUTHENTICATION (More secure, recommended for production)
+# ==============================================================================
+
+# [prod_keypair]
+# account = "<PROD_ACCOUNT_IDENTIFIER>"
+# user = "<YOUR_USERNAME>"
+# private_key_file = "~/.snowflake/rsa_key.p8"
+# private_key_file_pwd = "<YOUR_KEY_PASSWORD>"
+# warehouse = "PROD_WH"
+# database = "PROD_DB"
+# schema = "PUBLIC"
+# role = "ANALYST"
