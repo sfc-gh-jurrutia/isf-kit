@@ -2,6 +2,22 @@
 
 Onboarding kit for Snowflake development tools in Cursor IDE.
 
+## TL;DR — Get Started in 2 Steps
+
+**Step 1:** Run in terminal:
+```bash
+./scripts/setup-snowflake-mcp.sh
+```
+
+**Step 2:** Restart Cursor, then paste this in chat:
+```
+/setup-and-verify-snowflake
+```
+
+Done! You're connected to Snowflake. 🎉
+
+---
+
 ## What's Included
 
 | Scope | Component | Description |

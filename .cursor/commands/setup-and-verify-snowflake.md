@@ -1,78 +1,102 @@
 # Setup and Verify Snowflake (Complete Workflow)
 
-Run this complete onboarding workflow. Execute each step sequentially - **do not skip ahead**.
+Auto-run onboarding workflow. Execute each step sequentially - install missing tools and run setup automatically.
 
 ---
 
-## Step 0: Check Prerequisites
+## Step 0: Check & Install Prerequisites
 
-Verify required tools are installed:
+Check and auto-install required tools:
 
-1. **Homebrew** (macOS):
-   ```bash
-   brew --version
-   ```
-   If missing: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
-
-2. **uvx** (Python package runner):
+1. **uvx** (required):
    ```bash
    uvx --version
    ```
-   If missing: `curl -LsSf https://astral.sh/uv/install.sh | sh` then restart terminal
+   If missing, run:
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   source $HOME/.local/bin/env
+   ```
 
-3. **SnowSQL** (optional but recommended):
-   Run this check in terminal:
+2. **Homebrew** (macOS):
+   ```bash
+   brew --version
+   ```
+   If missing, run:
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+
+3. **SnowSQL** (optional):
    ```bash
    if [ -d "/Applications/SnowSQL.app" ]; then
        echo "✅ SnowSQL installed"
-       /Applications/SnowSQL.app/Contents/MacOS/snowsql -v 2>/dev/null | head -1
    else
        echo "❌ SnowSQL not found"
    fi
    ```
-   If missing: `brew install --cask snowflake-snowsql`
+   If missing, run:
+   ```bash
+   brew install --cask snowflake-snowsql
+   ```
 
-**Gate:** If uvx is missing, tell me to install it and **STOP**. Homebrew and SnowSQL are optional but recommended.
+**Gate:** uvx must be installed to proceed.
 
 ---
 
-## Step 1: Check Config Files
+## Step 1: Check Config & Run Setup
 
-Verify MCP configuration exists:
+Check if MCP is configured:
 
-1. **Check files exist:**
-   - `~/.cursor/mcp.json` — has `snowflake-default` server?
-   - `~/.snowflake/connections.toml` — exists?
-   - `~/.mcp/snowflake-tools.yaml` — exists?
+```bash
+# Check all required files
+[ -f ~/.cursor/mcp.json ] && echo "✅ mcp.json" || echo "❌ mcp.json missing"
+[ -f ~/.snowflake/connections.toml ] && echo "✅ connections.toml" || echo "❌ connections.toml missing"
+[ -f ~/.mcp/snowflake-tools.yaml ] && echo "✅ snowflake-tools.yaml" || echo "❌ snowflake-tools.yaml missing"
+```
 
-2. **If any missing:** Tell me to run `./scripts/setup-snowflake-mcp.sh` and **STOP**.
+**If any files are missing**, run the setup script:
 
-3. **Check for issues:**
-   - Is `__HOME__` still in mcp.json? (should be actual path)
-   - Are there `<YOUR_ACCOUNT>` placeholders in connections.toml?
-   - If issues found, tell me how to fix and **STOP**.
+```bash
+./scripts/setup-snowflake-mcp.sh
+```
 
-**Gate:** Only proceed to Step 2 if all checks pass.
+This script will:
+1. Copy config templates to your home directory
+2. Prompt you to enter Snowflake credentials
+3. Test the connection
+
+**After the script completes:**
+- Tell the user to **restart Cursor**
+- Then re-run `/setup-and-verify-snowflake` to continue to Step 2
+
+**If all files exist**, check for issues:
+
+```bash
+# Check for unresolved placeholders
+grep -q "__HOME__" ~/.cursor/mcp.json && echo "⚠️ __HOME__ placeholder found" || echo "✅ Paths resolved"
+grep -q "<YOUR_ACCOUNT>" ~/.snowflake/connections.toml && echo "⚠️ Credentials not configured" || echo "✅ Credentials set"
+```
+
+**Gate:** All config files must exist with no placeholders to proceed.
 
 ---
 
-## Step 2: Verify Connection
+## Step 2: Verify Snowflake Connection
 
-Test Snowflake connectivity:
+Test the connection:
 
-1. **Run this query:**
-   ```sql
-   SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE();
-   ```
+```sql
+SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE();
+```
 
-2. **List databases:**
-   ```sql
-   SHOW DATABASES;
-   ```
+```sql
+SHOW DATABASES;
+```
 
-3. **Report results:**
-   - Success → "Onboarding complete!"
-   - Failure → Show error and specific fix
+**Report results:**
+- ✅ Success → "Onboarding complete! You're connected to Snowflake."
+- ❌ Failure → Show error and specific fix (check credentials, PAT token, etc.)
 
 ---
 
