@@ -2,19 +2,20 @@
 
 Onboarding kit for Snowflake development tools in Cursor IDE.
 
-## TL;DR — Get Started in 2 Steps
+## TL;DR — Get Started
 
-**Step 1:** Run in terminal:
-```bash
-./scripts/setup-snowflake-mcp.sh
-```
-
-**Step 2:** Restart Cursor, then paste this in chat:
+Open Cursor chat and paste:
 ```
 /setup-and-verify-snowflake
 ```
 
-Done! You're connected to Snowflake. 🎉
+The command will:
+1. Check & install required tools (uvx, SnowSQL)
+2. Run the setup script if config is missing
+3. Prompt you for Snowflake credentials
+4. Verify the connection
+
+After entering credentials, restart Cursor and run the command again to verify.
 
 ---
 
@@ -42,29 +43,29 @@ Done! You're connected to Snowflake. 🎉
 ```bash
 git clone <repo-url>
 cd isf-kit
-./scripts/setup-snowflake-mcp.sh
 ```
 
-The script will:
-1. Install `uvx` and SnowSQL
-2. Copy config templates to your home directory
-3. Prompt you to enter your Snowflake credentials
-4. Test the connection
-
-**After setup, restart Cursor.**
-
-### Verify It Works
-
-Run the onboarding command in Cursor:
+Open in Cursor and run this command in chat:
 
 ```
 /setup-and-verify-snowflake
 ```
 
-This checks your config files and tests the Snowflake connection.
+The command will:
+1. Check & install required tools (uvx, SnowSQL)
+2. Run setup script if config is missing
+3. Prompt you for Snowflake credentials
+4. Verify the connection
 
-**Or** manually test by asking in chat:
-> "List all databases I have access to"
+**After entering credentials, restart Cursor and run the command again.**
+
+### Alternative: Manual Setup
+
+If you prefer to run the setup script directly:
+
+```bash
+./scripts/setup-snowflake-mcp.sh
+```
 
 If you see your Snowflake databases, you're all set!
 
