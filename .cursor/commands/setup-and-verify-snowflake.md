@@ -4,11 +4,37 @@ Run this complete onboarding workflow. Execute each step sequentially - **do not
 
 ---
 
-## Step 1: Onboard (from `onboard-new-developer`)
+## Step 0: Check Prerequisites
 
-First, check my setup status:
+Verify required tools are installed:
 
-1. **Verify config files exist:**
+1. **Homebrew** (macOS):
+   ```bash
+   brew --version
+   ```
+   If missing: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+
+2. **uvx** (Python package runner):
+   ```bash
+   uvx --version
+   ```
+   If missing: `curl -LsSf https://astral.sh/uv/install.sh | sh` then restart terminal
+
+3. **SnowSQL** (optional but recommended):
+   ```bash
+   snowsql -v
+   ```
+   If missing: `brew install --cask snowflake-snowsql`
+
+**Gate:** If uvx is missing, tell me to install it and **STOP**. Homebrew and SnowSQL are optional but recommended.
+
+---
+
+## Step 1: Check Config Files
+
+Verify MCP configuration exists:
+
+1. **Check files exist:**
    - `~/.cursor/mcp.json` — has `snowflake-default` server?
    - `~/.snowflake/connections.toml` — exists?
    - `~/.mcp/snowflake-tools.yaml` — exists?
@@ -24,9 +50,9 @@ First, check my setup status:
 
 ---
 
-## Step 2: Verify (from `verify-snowflake-setup`)
+## Step 2: Verify Connection
 
-Now test the connection:
+Test Snowflake connectivity:
 
 1. **Run this query:**
    ```sql
@@ -39,8 +65,8 @@ Now test the connection:
    ```
 
 3. **Report results:**
-   - ✅ Success → "Onboarding complete!"
-   - ❌ Failure → Show error and specific fix
+   - Success → "Onboarding complete!"
+   - Failure → Show error and specific fix
 
 ---
 
@@ -50,6 +76,7 @@ Now test the connection:
 ┌─────────────────────────────────────┐
 │  ONBOARDING RESULT                  │
 ├─────────────────────────────────────┤
+│  Step 0 (Tools):   ✅ or ❌          │
 │  Step 1 (Config):  ✅ or ❌          │
 │  Step 2 (Connect): ✅ or ❌          │
 ├─────────────────────────────────────┤
