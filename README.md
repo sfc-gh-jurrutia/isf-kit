@@ -55,11 +55,27 @@ The script will:
 - Prompt you to enter your Snowflake credentials (use your PAT!)
 - Test the connection
 
-### Step 5: Restart Cursor
+### Step 5: Configure Snowflake Account (if needed)
+
+The script will open your config files for editing. You'll need to set:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `account` | Snowflake account identifier | `xy12345.us-east-1` |
+| `user` | Your Snowflake username | `jsmith` |
+| `password` | Your PAT token (from Step 2) | `ver:1:abc123...` |
+| `warehouse` | Compute warehouse | `SANDBOX_WH` |
+| `database` | Default database | `SANDBOX_DB` |
+| `schema` | Default schema | `PUBLIC` |
+| `role` | Your Snowflake role | `DATA_ANALYST` |
+
+> **Note:** If you already have `~/.snowflake/connections.toml` or `~/.snowsql/config` configured, the script will ask before overwriting. You can skip this step if your existing config is correct.
+
+### Step 6: Restart Cursor
 
 Close and reopen Cursor to load the MCP server.
 
-### Step 6: Verify Setup
+### Step 7: Verify Setup
 
 Open a new chat in Cursor and try:
 > "List all databases I have access to"

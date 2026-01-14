@@ -1,6 +1,6 @@
 ---
 description: Tiered Hybrid Architecture for Snowflake Native App (SPCS)
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Tiered Hybrid Architecture Context
