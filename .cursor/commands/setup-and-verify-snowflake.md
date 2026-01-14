@@ -21,13 +21,16 @@ Verify required tools are installed:
    If missing: `curl -LsSf https://astral.sh/uv/install.sh | sh` then restart terminal
 
 3. **SnowSQL** (optional but recommended):
+   Run this check in terminal:
    ```bash
-   # Check alias OR direct path (macOS installs to /Applications)
-   snowsql -v || /Applications/SnowSQL.app/Contents/MacOS/snowsql -v
+   if [ -d "/Applications/SnowSQL.app" ]; then
+       echo "✅ SnowSQL installed"
+       /Applications/SnowSQL.app/Contents/MacOS/snowsql -v 2>/dev/null | head -1
+   else
+       echo "❌ SnowSQL not found"
+   fi
    ```
    If missing: `brew install --cask snowflake-snowsql`
-   
-   Note: On macOS, SnowSQL is typically accessed via alias. Check `~/.zshrc` for the alias.
 
 **Gate:** If uvx is missing, tell me to install it and **STOP**. Homebrew and SnowSQL are optional but recommended.
 
