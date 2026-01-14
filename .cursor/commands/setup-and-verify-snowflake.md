@@ -22,9 +22,12 @@ Verify required tools are installed:
 
 3. **SnowSQL** (optional but recommended):
    ```bash
-   snowsql -v
+   # Check alias OR direct path (macOS installs to /Applications)
+   snowsql -v || /Applications/SnowSQL.app/Contents/MacOS/snowsql -v
    ```
    If missing: `brew install --cask snowflake-snowsql`
+   
+   Note: On macOS, SnowSQL is typically accessed via alias. Check `~/.zshrc` for the alias.
 
 **Gate:** If uvx is missing, tell me to install it and **STOP**. Homebrew and SnowSQL are optional but recommended.
 
