@@ -1,3 +1,12 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "snowflake-default": {
+      "command": "${userHome}/.local/bin/uvx",
+      "args": [
+        "snowflake-labs-mcp==1.3.5",
+        "--service-config-file", "${userHome}/.mcp/snowflake-tools.yaml",
+        "--connection-name", "default"
+      ]
+    }
+  }
 }
