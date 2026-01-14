@@ -134,6 +134,14 @@ else
         echo "   Add the snowflake-default server to your ~/.cursor/mcp.json"
     fi
 fi
+
+# Replace __HOME__ placeholder with actual home path
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s|__HOME__|$HOME|g" ~/.cursor/mcp.json
+else
+    sed -i "s|__HOME__|$HOME|g" ~/.cursor/mcp.json
+fi
+echo "✅ Updated paths in mcp.json"
 echo ""
 
 # Step 8: Role selection

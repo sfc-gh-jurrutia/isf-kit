@@ -11,89 +11,64 @@ Onboarding kit for Snowflake development tools in Cursor IDE.
 | **Project** | Team Rules | Snowflake development standards (`.cursor/rules/`) |
 | **Project** | Cursor Commands | Development workflow helpers (`.cursor/commands/`) |
 
-## Happy Path: New Developer Onboarding
+---
 
-### Step 1: Prerequisites
+## Quick Start
 
-Before you begin, ensure you have:
+### Prerequisites
 
-- [ ] **Homebrew** installed (macOS)
-  ```bash
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  ```
+- [ ] **Homebrew** (macOS): `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
 - [ ] **Snowflake account access**
-- [ ] **Cursor IDE** installed
+- [ ] **Programmatic Access Token (PAT)** — [How to create one](#creating-a-pat)
 
-### Step 2: Create a Programmatic Access Token (PAT)
-
-1. Log in to Snowflake at `https://app.snowflake.com`
-2. Click your **username** (bottom-left) → **My Profile**
-3. Scroll to **Programmatic Access Tokens**
-4. Click **Generate New Token**
-5. Select your role (e.g., `DATA_ANALYST`)
-6. **Copy the token** — you'll need it in Step 4
-
-### Step 3: Clone and Open
+### Setup (5 minutes)
 
 ```bash
 git clone <repo-url>
 cd isf-kit
-```
-
-Open in Cursor IDE.
-
-### Step 4: Run Setup Script
-
-```bash
 ./scripts/setup-snowflake-mcp.sh
 ```
 
 The script will:
-- Install `uv` (Python package manager)
-- Install SnowSQL CLI
-- Copy configuration templates to your home directory
-- Prompt you to enter your Snowflake credentials (use your PAT!)
-- Test the connection
+1. Install `uvx` and SnowSQL
+2. Copy config templates to your home directory
+3. Prompt you to enter your Snowflake credentials
+4. Test the connection
 
-### Step 5: Configure Snowflake Account (if needed)
+**After setup, restart Cursor.**
 
-The script will open your config files for editing. You'll need to set:
+### Verify It Works
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| `account` | Snowflake account identifier | `xy12345.us-east-1` |
-| `user` | Your Snowflake username | `jsmith` |
-| `password` | Your PAT token (from Step 2) | `ver:1:abc123...` |
-| `warehouse` | Compute warehouse | `SANDBOX_WH` |
-| `database` | Default database | `SANDBOX_DB` |
-| `schema` | Default schema | `PUBLIC` |
-| `role` | Your Snowflake role | `DATA_ANALYST` |
-
-> **Note:** If you already have `~/.snowflake/connections.toml` or `~/.snowsql/config` configured, the script will ask before overwriting. You can skip this step if your existing config is correct.
-
-### Step 6: Restart Cursor
-
-Close and reopen Cursor to load the MCP server.
-
-### Step 7: Verify Setup
-
-Open a new chat in Cursor and try:
+Open Cursor chat and ask:
 > "List all databases I have access to"
 
 If you see your Snowflake databases, you're all set! 🎉
 
 ---
 
-## What Gets Installed
+## Configuration Reference
+
+### Credentials (entered during setup)
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `account` | Snowflake account identifier | `xy12345.us-east-1` |
+| `user` | Your Snowflake username | `jsmith` |
+| `password` | Your PAT token | `ver:1:abc123...` |
+| `warehouse` | Compute warehouse | `SANDBOX_WH` |
+| `database` | Default database | `SANDBOX_DB` |
+| `role` | Your Snowflake role | `DATA_ANALYST` |
+
+### Files Installed
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `mcp.json` | `~/.cursor/` | Global MCP server config |
+| `mcp.json` | `~/.cursor/` | MCP server config |
+| `snowflake-tools.yaml` | `~/.mcp/` | MCP permissions |
 | `connections.toml` | `~/.snowflake/` | MCP credentials |
-| `snowflake-tools.yaml` | `~/.mcp/` | MCP tool permissions |
 | `config` | `~/.snowsql/` | SnowSQL credentials |
 
-## Environment Switching
+### Environment Switching
 
 | Environment | MCP (Cursor Chat) | SnowSQL |
 |-------------|-------------------|---------|
@@ -101,25 +76,38 @@ If you see your Snowflake databases, you're all set! 🎉
 | Staging | `snowflake-staging` | `snowsql -c staging` |
 | Production | `snowflake-prod` | `snowsql -c prod` |
 
-## Documentation
+---
 
-See [docs/mcp-snowflake-setup.md](docs/mcp-snowflake-setup.md) for:
-- Multi-account configuration
-- Creating a read-only role
-- Troubleshooting common issues
-- PAT rotation
+## Creating a PAT
 
-## Cursor Rules (Project-Level)
+1. Log in to Snowflake at `https://app.snowflake.com`
+2. Click your **username** (bottom-left) → **My Profile**
+3. Scroll to **Programmatic Access Tokens**
+4. Click **Generate New Token**
+5. Select your role (e.g., `DATA_ANALYST`)
+6. **Copy the token** — use this as your password in the setup
 
-When you open this project in Cursor, these rules automatically activate:
+---
 
-| Rule | Description |
-|------|-------------|
-| `snowflake/` | SQL best practices, MCP usage, documentation references |
-| `snowflake-cortex/` | Cortex AI RAG pattern enforcement |
-| `spcs-backend/` | Snowpark Container Services backend patterns |
-| `spcs-frontend/` | Snowpark Container Services frontend patterns |
+## Troubleshooting
+
+**MCP not connecting?**
+- Check credentials in `~/.snowflake/connections.toml`
+- Ensure you're using a PAT, not your regular password
+- Restart Cursor after setup
+
+**SnowSQL not found?**
+- Run `source ~/.zshrc` or restart terminal
+- Verify install: `ls /Applications/SnowSQL.app`
+
+See [docs/mcp-snowflake-setup.md](docs/mcp-snowflake-setup.md) for detailed troubleshooting.
+
+---
 
 ## Contributing
 
 If you have suggestions or improvements, submit a merge request.
+
+---
+
+*For template maintainers: See [docs/template-architecture.md](docs/template-architecture.md) for technical details on how the template handles portable paths.*
