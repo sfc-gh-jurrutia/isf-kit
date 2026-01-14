@@ -1,63 +1,109 @@
-# snowflake-project-template
+# Snowflake Development Kit
 
-This project serves as a boilerplate template for creating new projects within GitLab. It is designed to streamline the setup process and ensure consistency across projects.
-
-## Overview
-
-It contains certain security specific configuration files
-- **.gitlab/repo_meta.yaml**: This file is used for project tagging and is a mandatory file to be present in each GitLab project. Project maintainers are supposed to properly edit this file following this [guideline](https://snowflakecomputing.atlassian.net/wiki/spaces/EEA/pages/3757867124/GitLab+Project+Tagging+Guideline) after creating a new project
-- **.pre-commit-config.yaml**: Configuration for managing pre-commit hooks to maintain code quality.
-- **CODEOWNERS**: A file to define code ownership and streamline code review processes. This file is required for a GitLab production project, and optional for a non-production project, hence can be deleted. For production projects, follow this [guideline](https://docs.gitlab.com/ee/user/project/codeowners/) to have proper content in the CODEOWNERS file.
-- **.gitignore**: A standard ignore file to prevent unnecessary files from being tracked in the repository.
-
-## Contributing
-
-If you have suggestions or improvements for this template, please feel free to submit a merge request.
-# Snowflake Development Environment
-
-Onboarding setup for Snowflake development tools in Cursor IDE.
+Onboarding kit for Snowflake development tools in Cursor IDE.
 
 ## What's Included
 
-**After running the setup script**, you get:
-- **MCP Server** - Query Snowflake directly from chat (**global** - works in any project)
-- **SnowSQL** - Command-line interface for Snowflake
+| Scope | Component | Description |
+|-------|-----------|-------------|
+| **Global** | MCP Server | Query Snowflake directly from Cursor chat |
+| **Global** | SnowSQL | Command-line interface for Snowflake |
+| **Project** | Team Rules | Snowflake development standards (`.cursor/rules/`) |
+| **Project** | Cursor Commands | Development workflow helpers (`.cursor/commands/`) |
 
-**When you open this project in Cursor**, you also get:
-- **Team Rules** - Snowflake development standards (project-level)
-- **Cursor Commands** - Development workflow helpers (project-level)
+## Happy Path: New Developer Onboarding
 
-## Prerequisites
+### Step 1: Prerequisites
 
-- [ ] **Homebrew** (macOS)
+Before you begin, ensure you have:
+
+- [ ] **Homebrew** installed (macOS)
   ```bash
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   ```
 - [ ] **Snowflake account access**
-- [ ] **Programmatic Access Token (PAT)** from Snowflake
+- [ ] **Cursor IDE** installed
 
-## Quick Start
+### Step 2: Create a Programmatic Access Token (PAT)
+
+1. Log in to Snowflake at `https://app.snowflake.com`
+2. Click your **username** (bottom-left) → **My Profile**
+3. Scroll to **Programmatic Access Tokens**
+4. Click **Generate New Token**
+5. Select your role (e.g., `DATA_ANALYST`)
+6. **Copy the token** — you'll need it in Step 4
+
+### Step 3: Clone and Open
+
+```bash
+git clone <repo-url>
+cd isf-kit
+```
+
+Open in Cursor IDE.
+
+### Step 4: Run Setup Script
 
 ```bash
 ./scripts/setup-snowflake-mcp.sh
 ```
 
-This will install and configure:
-- **Global MCP** - `~/.cursor/mcp.json` (works in any project)
-- **uv** - Python package manager for MCP server
-- **SnowSQL** - Snowflake command-line interface
-- **Credentials** - Connection configs for both tools
+The script will:
+- Install `uv` (Python package manager)
+- Install SnowSQL CLI
+- Copy configuration templates to your home directory
+- Prompt you to enter your Snowflake credentials (use your PAT!)
+- Test the connection
 
-After running the script, **restart Cursor** and you can use Snowflake MCP in **any directory**.
+### Step 5: Restart Cursor
 
-## Documentation
+Close and reopen Cursor to load the MCP server.
 
-See [docs/mcp-snowflake-setup.md](docs/mcp-snowflake-setup.md) for detailed setup instructions.
+### Step 6: Verify Setup
+
+Open a new chat in Cursor and try:
+> "List all databases I have access to"
+
+If you see your Snowflake databases, you're all set! 🎉
+
+---
+
+## What Gets Installed
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `mcp.json` | `~/.cursor/` | Global MCP server config |
+| `connections.toml` | `~/.snowflake/` | MCP credentials |
+| `snowflake-tools.yaml` | `~/.mcp/` | MCP tool permissions |
+| `config` | `~/.snowsql/` | SnowSQL credentials |
 
 ## Environment Switching
 
-| Environment | MCP (Cursor) | SnowSQL |
-|-------------|--------------|---------|
+| Environment | MCP (Cursor Chat) | SnowSQL |
+|-------------|-------------------|---------|
 | Development | `snowflake-default` | `snowsql -c default` |
 | Staging | `snowflake-staging` | `snowsql -c staging` |
 | Production | `snowflake-prod` | `snowsql -c prod` |
+
+## Documentation
+
+See [docs/mcp-snowflake-setup.md](docs/mcp-snowflake-setup.md) for:
+- Multi-account configuration
+- Creating a read-only role
+- Troubleshooting common issues
+- PAT rotation
+
+## Cursor Rules (Project-Level)
+
+When you open this project in Cursor, these rules automatically activate:
+
+| Rule | Description |
+|------|-------------|
+| `snowflake/` | SQL best practices, MCP usage, documentation references |
+| `snowflake-cortex/` | Cortex AI RAG pattern enforcement |
+| `spcs-backend/` | Snowpark Container Services backend patterns |
+| `spcs-frontend/` | Snowpark Container Services frontend patterns |
+
+## Contributing
+
+If you have suggestions or improvements, submit a merge request.
