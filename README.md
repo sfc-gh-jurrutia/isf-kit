@@ -9,7 +9,7 @@ Onboarding kit for Snowflake development tools in Cursor IDE.
 | **Global** | MCP Server | Query Snowflake directly from Cursor chat |
 | **Global** | SnowSQL | Command-line interface for Snowflake |
 | **Project** | Team Rules | Snowflake development standards (`.cursor/rules/`) |
-| **Project** | Cursor Commands | Development workflow helpers (`.cursor/commands/`) |
+| **Project** | Cursor Commands | Onboarding and workflow helpers (`.cursor/commands/`) |
 
 ---
 
@@ -39,10 +39,18 @@ The script will:
 
 ### Verify It Works
 
-Open Cursor chat and ask:
+Run the onboarding command in Cursor:
+
+```
+/setup-and-verify-snowflake
+```
+
+This checks your config files and tests the Snowflake connection.
+
+**Or** manually test by asking in chat:
 > "List all databases I have access to"
 
-If you see your Snowflake databases, you're all set! 🎉
+If you see your Snowflake databases, you're all set!
 
 ---
 
