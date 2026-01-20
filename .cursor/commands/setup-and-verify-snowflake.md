@@ -1,10 +1,28 @@
 # Setup and Verify Snowflake (Complete Workflow)
 
-Auto-run onboarding workflow. Execute each step sequentially - install missing tools and run setup automatically.
+Auto-run onboarding workflow with safety checks. Execute each step sequentially - install missing tools and run setup automatically.
 
 ---
 
-## Step 0: Check & Install Prerequisites
+## Step 0: Preview Changes (Recommended First Step)
+
+Before making any changes, run a dry-run to see what will happen:
+
+```bash
+./scripts/setup-snowflake-mcp.sh --dry-run
+```
+
+This shows:
+- Files that will be created
+- Existing configurations that will be preserved
+- Any files needing credential configuration
+- Exact actions that would be taken
+
+**No changes are made in dry-run mode.**
+
+---
+
+## Step 1: Check & Install Prerequisites
 
 Check and auto-install required tools:
 
@@ -44,45 +62,59 @@ Check and auto-install required tools:
 
 ---
 
-## Step 1: Check Config & Run Setup
+## Step 2: Run Setup with Safety Features
 
-Check if MCP is configured:
+The setup script now includes safety features to protect existing configurations.
+
+### Quick Check (Silent)
+
+Check if already configured without output:
 
 ```bash
-# Check all required files
-[ -f ~/.cursor/mcp.json ] && echo "✅ mcp.json" || echo "❌ mcp.json missing"
-[ -f ~/.snowflake/connections.toml ] && echo "✅ connections.toml" || echo "❌ connections.toml missing"
-[ -f ~/.mcp/snowflake-tools.yaml ] && echo "✅ snowflake-tools.yaml" || echo "❌ snowflake-tools.yaml missing"
+./scripts/setup-snowflake-mcp.sh --check && echo "Already configured" || echo "Setup needed"
 ```
 
-**If any files are missing**, run the setup script:
+### Interactive Setup (Default)
+
+Run the setup script interactively:
 
 ```bash
 ./scripts/setup-snowflake-mcp.sh
 ```
 
-This script will:
-1. Copy config templates to your home directory
-2. Prompt you to enter Snowflake credentials
-3. Test the connection
+**Safety features enabled:**
+- Existing configs are preserved by default
+- Before any replacement, you choose: Skip, Backup & Replace, or View
+- Backups saved to `~/.snowflake-backup/` with timestamps
+- Shows existing connections/servers before prompting
 
-**After the script completes:**
-- Tell the user to **restart Cursor**
-- Then re-run `/setup-and-verify-snowflake` to continue to Step 2
+### Non-Interactive Setup
 
-**If all files exist**, check for issues:
+For scripted/CI use:
 
 ```bash
-# Check for unresolved placeholders
-grep -q "__HOME__" ~/.cursor/mcp.json && echo "⚠️ __HOME__ placeholder found" || echo "✅ Paths resolved"
-grep -q "<YOUR_ACCOUNT>" ~/.snowflake/connections.toml && echo "⚠️ Credentials not configured" || echo "✅ Credentials set"
+./scripts/setup-snowflake-mcp.sh --force
 ```
 
-**Gate:** All config files must exist with no placeholders to proceed.
+This skips all prompts and preserves existing configurations.
+
+### Command-Line Options
+
+| Flag | Purpose |
+|------|---------|
+| `--dry-run` | Preview changes without modifying anything |
+| `--check` | Silent check, exit 0 if configured, exit 1 if not |
+| `--force` | Non-interactive mode, skip existing configs |
+| `--backup-dir PATH` | Custom backup location (default: ~/.snowflake-backup/) |
+| `--help` | Show usage information |
 
 ---
 
-## Step 2: Verify Snowflake Connection
+## Step 3: Verify Snowflake Connection
+
+**After the script completes:**
+1. **Restart Cursor** to load the MCP server
+2. Re-run `/setup-and-verify-snowflake` to verify
 
 Test the connection:
 
@@ -95,8 +127,45 @@ SHOW DATABASES;
 ```
 
 **Report results:**
-- ✅ Success → "Onboarding complete! You're connected to Snowflake."
-- ❌ Failure → Show error and specific fix (check credentials, PAT token, etc.)
+- Success: "Onboarding complete! You're connected to Snowflake."
+- Failure: Show error and specific fix (check credentials, PAT token, etc.)
+
+---
+
+## Troubleshooting
+
+### Restore from Backup
+
+If something goes wrong, backups are in `~/.snowflake-backup/`:
+
+```bash
+ls -la ~/.snowflake-backup/
+```
+
+To restore:
+```bash
+cp ~/.snowflake-backup/connections.toml.20240115_143022.bak ~/.snowflake/connections.toml
+```
+
+### View Current Configuration
+
+The setup script can show existing configurations:
+
+```bash
+./scripts/setup-snowflake-mcp.sh --dry-run
+```
+
+### Reset to Fresh State
+
+To start over with fresh templates:
+
+```bash
+# Backup everything first
+./scripts/setup-snowflake-mcp.sh --dry-run  # See what exists
+
+# Then run interactively and choose "Backup & Replace" for each file
+./scripts/setup-snowflake-mcp.sh
+```
 
 ---
 
@@ -106,11 +175,13 @@ SHOW DATABASES;
 ┌─────────────────────────────────────┐
 │  ONBOARDING RESULT                  │
 ├─────────────────────────────────────┤
-│  Step 0 (Tools):   ✅ or ❌          │
-│  Step 1 (Config):  ✅ or ❌          │
-│  Step 2 (Connect): ✅ or ❌          │
+│  Step 0 (Dry Run):  ✅ Reviewed     │
+│  Step 1 (Tools):    ✅ or ❌        │
+│  Step 2 (Config):   ✅ or ❌        │
+│  Step 3 (Connect):  ✅ or ❌        │
 ├─────────────────────────────────────┤
 │  Status: COMPLETE / NEEDS ACTION    │
+│  Backups: ~/.snowflake-backup/      │
 │  Next:   (if any)                   │
 └─────────────────────────────────────┘
 ```

@@ -64,10 +64,72 @@ The command will:
 If you prefer to run the setup script directly:
 
 ```bash
+# Preview what will happen (recommended first step)
+./scripts/setup-snowflake-mcp.sh --dry-run
+
+# Run the actual setup
 ./scripts/setup-snowflake-mcp.sh
 ```
 
 If you see your Snowflake databases, you're all set!
+
+---
+
+## Safety Features
+
+The setup script includes safety features to protect your existing configurations:
+
+### Dry-Run Mode
+
+Preview all changes before execution:
+
+```bash
+./scripts/setup-snowflake-mcp.sh --dry-run
+```
+
+This shows:
+- Files that will be created
+- Existing configurations that will be preserved
+- Files needing credential configuration
+- Exact actions that would be taken
+
+**No changes are made in dry-run mode.**
+
+### Automatic Backup
+
+Before replacing any file, the script:
+1. Creates a timestamped backup in `~/.snowflake-backup/`
+2. Prompts you to confirm the action
+3. Shows existing configuration details
+
+### Interactive Prompts
+
+For each existing config file, you can choose:
+- **Skip** — Keep existing file (recommended for working configs)
+- **Backup & Replace** — Save current file, use fresh template
+- **View** — See current file contents before deciding
+
+### Command-Line Options
+
+| Flag | Purpose |
+|------|---------|
+| `--dry-run` | Preview changes without modifying anything |
+| `--check` | Silent check, exit 0 if configured, exit 1 if not |
+| `--force` | Non-interactive mode, skip existing configs |
+| `--backup-dir PATH` | Custom backup location (default: `~/.snowflake-backup/`) |
+| `--help` | Show usage information |
+
+### Restore from Backup
+
+If something goes wrong:
+
+```bash
+# List backups
+ls -la ~/.snowflake-backup/
+
+# Restore a specific backup
+cp ~/.snowflake-backup/connections.toml.20240115_143022.bak ~/.snowflake/connections.toml
+```
 
 ---
 
@@ -124,6 +186,17 @@ If you see your Snowflake databases, you're all set!
 **SnowSQL not found?**
 - Run `source ~/.zshrc` or restart terminal
 - Verify install: `ls /Applications/SnowSQL.app`
+
+**Want to see current configuration status?**
+```bash
+./scripts/setup-snowflake-mcp.sh --dry-run
+```
+
+**Need to restore previous configuration?**
+```bash
+ls ~/.snowflake-backup/  # Find your backup
+cp ~/.snowflake-backup/<filename>.bak ~/.snowflake/<filename>
+```
 
 See [docs/mcp-snowflake-setup.md](docs/mcp-snowflake-setup.md) for detailed troubleshooting.
 
