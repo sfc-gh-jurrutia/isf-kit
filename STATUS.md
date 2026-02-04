@@ -28,6 +28,10 @@ All application code has been generated and is ready to run:
   - `tasks.md` - Implementation checklist
   - `README.md` - Setup guide
 
+### Environment Setup
+- Backend: `uv sync` completed, dependencies installed
+- Frontend: `npm install` completed, dev server runs on http://localhost:5173/
+
 ## Blocked
 
 ### Database Setup
@@ -40,8 +44,18 @@ Cannot create database/schema in Snowflake:
 2. **Use existing database** where you have CREATE SCHEMA access
 3. Then run `snowflake/ddl/load_demo_data.sql` (update database name first)
 4. Upload `semantic-model.yaml` to stage
-5. Start backend: `cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload`
+5. Start backend: `cd backend && uv sync && uv run uvicorn app.main:app --reload`
 6. Start frontend: `cd frontend && npm install && npm run dev`
+
+## Future Work
+
+### Visualization & Dashboard Improvements
+- Design polished dashboard layouts with better visual hierarchy
+- Add charts/graphs for key metrics (sales trends, top products, regional performance)
+- Consider chart libraries: Recharts, Chart.js, or Nivo
+- Add dark mode support
+- Improve mobile responsiveness
+- Create sample dashboard templates for common retail analytics use cases
 
 ## Config Updates Needed
 When database is available, update:
