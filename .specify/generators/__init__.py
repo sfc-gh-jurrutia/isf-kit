@@ -5,6 +5,8 @@ This package provides a hybrid data generation system that supports:
 - Python/Faker generation for small datasets (< 1M rows)
 - Snowflake SQL generation for large datasets (>= 1M rows)
 - Industry-specific field generators (healthcare, retail, financial)
+- Medallion architecture (bronze, silver, gold layers)
+- Semantic model generation for Cortex Analyst
 - Multiple output formats (SQL, Parquet, CSV)
 
 Usage:
@@ -24,6 +26,10 @@ Usage:
     
     # Or execute directly in Snowflake
     handler.execute(connection="my_connection")
+    
+    # Generate semantic model for Cortex Analyst
+    from generators import generate_semantic_model
+    generate_semantic_model("domain-model.yaml", "semantic-model.yaml")
 """
 
 from pathlib import Path
@@ -35,10 +41,13 @@ from .base import (
     FieldDefinition,
     RelationshipDefinition,
     DataCharacteristics,
+    MedallionLayer,
+    LayerConfig,
 )
-from .generator import DataGenerator, IndustryGenerator
-from .output import OutputHandler
-from .industries import get_industry_generator, register_industry, INDUSTRY_REGISTRY
+from .generator import DataGenerator, IndustryGenerator, GeneratorConfig
+from .output import OutputHandler, MedallionConfig
+from .industries import get_industry_generator, register_industry, list_industries
+from .semantic import SemanticModelGenerator, generate_semantic_model
 
 
 __all__ = [
@@ -48,16 +57,23 @@ __all__ = [
     "FieldDefinition",
     "RelationshipDefinition",
     "DataCharacteristics",
+    # Medallion architecture
+    "MedallionLayer",
+    "LayerConfig",
+    "MedallionConfig",
     # Generator classes
     "DataGenerator",
     "IndustryGenerator",
+    # Semantic model generation
+    "SemanticModelGenerator",
+    "generate_semantic_model",
     # Output handling
     "OutputHandler",
     # Industry registration
     "get_industry_generator",
     "register_industry",
-    "INDUSTRY_REGISTRY",
-    # Factory function
+    "list_industries",
+    # Factory functions
     "generate_data",
     "create_generator",
 ]
@@ -78,7 +94,8 @@ def create_generator(
         Configured DataGenerator instance
     """
     model = DomainModel.from_yaml(domain_model_path)
-    return DataGenerator(model, seed=seed)
+    config = GeneratorConfig(seed=seed if seed is not None else model.seed)
+    return DataGenerator(model, config=config)
 
 
 def generate_data(
@@ -138,12 +155,10 @@ def generate_data(
     # Generate data
     if use_sql:
         data = generator.generate_sql()
-        # Add full DDL as metadata
-        data["_ddl"] = generator.get_ddl()
+        # Add full SQL as metadata
+        data["_full_sql"] = generator.get_full_sql()
     else:
         data = generator.generate_python()
-        # Add DDL for table creation
-        data["_ddl"] = generator.get_ddl()
     
     # Create output handler
     handler = OutputHandler(data, database=database, schema=schema)
@@ -189,7 +204,7 @@ def get_supported_industries() -> list[str]:
     Returns:
         List of industry names that have registered generators
     """
-    return list(INDUSTRY_REGISTRY.keys())
+    return list_industries()
 
 
 def validate_domain_model(domain_model_path: str | Path) -> dict[str, Any]:
@@ -232,10 +247,11 @@ def validate_domain_model(domain_model_path: str | Path) -> dict[str, Any]:
         
         # Check for industry generator
         industry = model.industry.lower()
-        if industry not in INDUSTRY_REGISTRY:
+        supported = list_industries()
+        if industry not in supported:
             result["warnings"].append(
                 f"No specialized generator for industry '{industry}'. "
-                f"Using generic generation. Supported: {list(INDUSTRY_REGISTRY.keys())}"
+                f"Using generic generation. Supported: {supported}"
             )
         
         # Check for orphaned entities (no relationships)
