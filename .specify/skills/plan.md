@@ -345,13 +345,26 @@ Generate `.specify/specs/{demo-name}/plan.md`:
 
 ### SSE Events (if streaming)
 
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `thinking` | `{status}` | Processing indicator |
-| `sql` | `{query}` | Generated SQL |
-| `data` | `{rows}` | Query results |
-| `error` | `{message}` | Error details |
-| `done` | `{}` | Stream complete |
+> **IMPORTANT**: Frontend and backend MUST use identical event names. This is the standard contract.
+
+| Event | Payload Key | Example | Description |
+|-------|-------------|---------|-------------|
+| `thinking` | `status` | `{"status": "Analyzing..."}` | Processing indicator |
+| `explanation` | `text` | `{"text": "I'll query..."}` | AI explanation of approach |
+| `sql` | `sql` | `{"sql": "SELECT..."}` | Generated SQL statement |
+| `data` | `rows` | `{"rows": [{...}]}` | Query results array |
+| `error` | `message` | `{"message": "Error..."}` | Error details |
+| `done` | (empty) | `{}` | Stream complete |
+
+**Event order**: `thinking` → `explanation` (optional) → `sql` → `data` → `done`
+
+**SSE format** (each event):
+```
+event: {event_name}
+data: {json_payload}
+
+```
+Note: Double newline required after data line.
 
 ## Security Considerations
 

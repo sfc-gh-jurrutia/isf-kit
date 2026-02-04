@@ -114,6 +114,14 @@ frontend/
 
 #### F2: Configure Snowflake Connections
 
+> **PAT Token Configuration** - The PAT (Programmatic Access Token) for Cortex Analyst REST API
+> can be stored in `~/.snowflake/config.toml` under either field name:
+> - `password` - Most common (used by Snowflake CLI)
+> - `token` - Alternative field name
+> 
+> Always check BOTH fields: `conn.get("password") or conn.get("token")`
+> Also support `SNOWFLAKE_PAT` or `SNOWFLAKE_TOKEN` environment variables as override.
+
 **Zone A Connector (Postgres):**
 ```python
 # backend/app/connectors/zone_a.py
@@ -162,19 +170,25 @@ class ZoneAConnector:
 zone_a = ZoneAConnector()
 ```
 
-**Zone B Connector (Snowflake):**
+**Zone B Connector (Snowflake via REST API):**
+
+> **IMPORTANT**: Use the REST API with httpx for Cortex Analyst, NOT the Python SDK.
+> The SDK (`snowflake-ml-python`) requires Python 3.9-3.11 and has complex dependencies.
+> The REST API works with any Python version and is more portable.
+
 ```python
 # backend/app/connectors/zone_b.py
+import httpx
 from snowflake.snowpark import Session
-from snowflake.snowpark.functions import col
 from starlette.concurrency import run_in_threadpool
 from app.config import settings
 
 class ZoneBConnector:
-    """Snowpark connector for Zone B (Analytics + Cortex)."""
+    """Snowpark + REST API connector for Zone B (Analytics + Cortex)."""
     
     def __init__(self):
         self._session = None
+        self._http_client = None
     
     @property
     def session(self) -> Session:
@@ -184,6 +198,18 @@ class ZoneBConnector:
             }).create()
         return self._session
     
+    @property
+    def _analyst_url(self) -> str:
+        """Get Cortex Analyst REST API URL.
+        
+        IMPORTANT: Account identifiers with underscores must be converted to hyphens.
+        Example: ORGNAME-ACCOUNT_NAME -> orgname-account-name
+        """
+        account = settings.SNOWFLAKE_ACCOUNT.lower().replace("_", "-")
+        if ".snowflakecomputing.com" in account:
+            return f"https://{account}/api/v2/cortex/analyst/message"
+        return f"https://{account}.snowflakecomputing.com/api/v2/cortex/analyst/message"
+    
     async def query(self, sql: str) -> list[dict]:
         """Execute SQL and return results as list of dicts."""
         def _query():
@@ -192,41 +218,53 @@ class ZoneBConnector:
         return await run_in_threadpool(_query)
     
     async def analyst_query(self, question: str, semantic_model: str) -> dict:
-        """Execute Cortex Analyst query."""
-        def _analyst():
-            from snowflake.cortex import Analyst
-            response = Analyst(
-                session=self.session,
-                semantic_model=semantic_model,
-            ).ask(question)
-            return {
-                "sql": response.sql,
-                "results": response.results.to_pandas().to_dict(orient="records"),
-                "explanation": response.explanation,
-            }
-        return await run_in_threadpool(_analyst)
+        """Execute Cortex Analyst query via REST API."""
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                self._analyst_url,
+                headers={
+                    "Authorization": f"Bearer {settings.SNOWFLAKE_PAT}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                json={
+                    "messages": [{"role": "user", "content": [{"type": "text", "text": question}]}],
+                    "semantic_model": semantic_model,
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Extract SQL and explanation from response
+            sql = None
+            explanation = None
+            for msg in data.get("message", {}).get("content", []):
+                if msg.get("type") == "sql":
+                    sql = msg.get("statement")
+                elif msg.get("type") == "text":
+                    explanation = msg.get("text")
+            
+            return {"sql": sql, "explanation": explanation, "results": []}
     
     async def analyst_stream(self, question: str, semantic_model: str):
-        """Stream Cortex Analyst response."""
-        def _stream():
-            from snowflake.cortex import Analyst
-            analyst = Analyst(
-                session=self.session,
-                semantic_model=semantic_model,
-            )
-            for event in analyst.ask_stream(question):
-                yield event
-        
-        # Run generator in threadpool
-        import asyncio
-        loop = asyncio.get_event_loop()
-        gen = _stream()
-        while True:
-            try:
-                event = await run_in_threadpool(next, gen)
-                yield event
-            except StopIteration:
-                break
+        """Stream Cortex Analyst response via SSE."""
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream(
+                "POST",
+                self._analyst_url,
+                headers={
+                    "Authorization": f"Bearer {settings.SNOWFLAKE_PAT}",
+                    "Content-Type": "application/json",
+                    "Accept": "text/event-stream",
+                },
+                json={
+                    "messages": [{"role": "user", "content": [{"type": "text", "text": question}]}],
+                    "semantic_model": semantic_model,
+                },
+            ) as response:
+                async for line in response.aiter_lines():
+                    if line.startswith("data:"):
+                        yield line[5:].strip()
 
 zone_b = ZoneBConnector()
 ```
@@ -379,6 +417,16 @@ async def health():
 
 #### B5: Cortex Query Endpoint with SSE
 
+> **SSE Event Contract** - Frontend and backend MUST use these exact event names and payload keys:
+> | Event | Payload | Description |
+> |-------|---------|-------------|
+> | `thinking` | `{status: string}` | Processing indicator |
+> | `explanation` | `{text: string}` | AI explanation |
+> | `sql` | `{sql: string}` | Generated SQL |
+> | `data` | `{rows: array}` | Query results (NOT "results") |
+> | `error` | `{message: string}` | Error details |
+> | `done` | `{}` | Stream complete |
+
 ```python
 # backend/app/routers/query.py
 from fastapi import APIRouter, HTTPException
@@ -409,23 +457,33 @@ async def query(request: QueryRequest):
 
 @router.get("/query/stream")
 async def query_stream(question: str):
-    """Stream Cortex Analyst response via SSE."""
+    """Stream Cortex Analyst response via SSE.
+    
+    NOTE: Uses "simulated streaming" pattern - makes a non-streaming query
+    internally, then yields results as SSE events. This is simpler and more
+    reliable than parsing Snowflake's native SSE format.
+    """
     
     async def event_generator():
         try:
-            # Send thinking event
+            # Send thinking event immediately for UX
             yield f"event: thinking\ndata: {json.dumps({'status': 'Processing query...'})}\n\n"
             
-            async for event in zone_b.analyst_stream(
+            # Make non-streaming query (simpler, more reliable)
+            result = await zone_b.analyst_query(
                 question=question,
                 semantic_model=settings.SEMANTIC_MODEL_PATH,
-            ):
-                if event.type == "sql":
-                    yield f"event: sql\ndata: {json.dumps({'sql': event.sql})}\n\n"
-                elif event.type == "results":
-                    yield f"event: data\ndata: {json.dumps({'rows': event.results})}\n\n"
-                elif event.type == "explanation":
-                    yield f"event: explanation\ndata: {json.dumps({'text': event.text})}\n\n"
+            )
+            
+            # Yield results as separate events
+            if result.get("explanation"):
+                yield f"event: explanation\ndata: {json.dumps({'text': result['explanation']})}\n\n"
+            
+            if result.get("sql"):
+                yield f"event: sql\ndata: {json.dumps({'sql': result['sql']})}\n\n"
+            
+            if result.get("results"):
+                yield f"event: data\ndata: {json.dumps({'rows': result['results']})}\n\n"
             
             yield f"event: done\ndata: {json.dumps({})}\n\n"
             
@@ -438,9 +496,14 @@ async def query_stream(question: str):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
         },
     )
 ```
+
+> **Why simulated streaming?** Parsing Snowflake's native SSE format is complex and error-prone.
+> The simulated approach provides the same UX (progressive updates) with much simpler code.
+> Add true streaming as an optimization only if needed for very long-running queries.
 
 ---
 

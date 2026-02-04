@@ -574,12 +574,21 @@ class SemanticModelGenerator:
         return metrics
     
     def _generate_sample_queries(self) -> list[dict]:
-        """Generate sample verified queries as placeholders."""
+        """Generate sample verified queries with proper timestamps.
+        
+        IMPORTANT: Snowflake semantic models require:
+        - verified_at: Unix timestamp (int64), NOT ISO date string
+        - Each verified query must have: name, question, sql, verified_at
+        """
+        import time
+        verified_at = int(time.time())  # Unix timestamp (int64) - required format
+        
         return [
             {
                 "name": "sample_query_placeholder",
                 "question": "What are the top 10 results?",
                 "sql": "-- Replace with actual verified query",
+                "verified_at": verified_at,  # Required: Unix timestamp (int64)
                 "use_as_onboarding_question": True,
             }
         ]

@@ -32,20 +32,28 @@ All application code has been generated and is ready to run:
 - Backend: `uv sync` completed, dependencies installed
 - Frontend: `npm install` completed, dev server runs on http://localhost:5173/
 
-## Blocked
+## Working
 
-### Database Setup
-Cannot create database/schema in Snowflake:
-- Current role is `PUBLIC` - lacks `CREATE DATABASE` privilege
-- Personal database `USER$JURRUTIA` exists but user denied permission to create schema
+### Snowflake Connection
+- **Connection**: `demo` (SE demo account with PAT auth)
+- **Account**: `SFSENORTHAMERICA-JURRUTIA_AWS1`
+- **Database**: `DEMO_DB.GOLD`
+- **Data loaded**: 422K+ rows across 6 tables
 
-### Next Steps Required
-1. **Get appropriate Snowflake role** with database creation privileges, OR
-2. **Use existing database** where you have CREATE SCHEMA access
-3. Then run `snowflake/ddl/load_demo_data.sql` (update database name first)
-4. Upload `semantic-model.yaml` to stage
-5. Start backend: `cd backend && uv sync && uv run uvicorn app.main:app --reload`
-6. Start frontend: `cd frontend && npm install && npm run dev`
+### Running the Demo
+```bash
+# Backend (port 8001)
+cd specs/retail-demo/backend && uv run uvicorn app.main:app --reload --port 8001
+
+# Frontend (port 5173)
+cd specs/retail-demo/frontend && npm run dev
+```
+
+### Setup Script
+To recreate the Snowflake data:
+```bash
+cd specs/retail-demo/backend && uv run python ../scripts/setup_snowflake.py demo
+```
 
 ## Future Work
 

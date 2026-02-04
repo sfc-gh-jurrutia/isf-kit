@@ -1,0 +1,60 @@
+# Python Project Template for Snowflake Demos
+# 
+# IMPORTANT CONSTRAINTS (per Constitution Principle 10):
+# - Python 3.10-3.11 required for Snowflake compatibility
+# - Use httpx (not requests) for HTTP clients
+# - Use REST API for Cortex Analyst (not Python SDK)
+#
+# Usage: Copy to your project's pyproject.toml and replace placeholders
+
+[project]
+name = "{{PROJECT_NAME}}"
+version = "1.0.0"
+description = "{{PROJECT_DESCRIPTION}}"
+requires-python = ">=3.10,<3.12"  # Required: Snowflake SDK compatibility
+
+dependencies = [
+    # Web framework
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    
+    # Data validation
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    
+    # Snowflake connectivity
+    "snowflake-snowpark-python[pandas]>=1.11.0",
+    
+    # HTTP client (prefer over requests for async support)
+    "httpx>=0.27.0",
+    
+    # Environment management
+    "python-dotenv>=1.0.0",
+    
+    # Data processing
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]  # Line length handled by formatter
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

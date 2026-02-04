@@ -31,6 +31,25 @@ Every user story has acceptance criteria. Every acceptance criterion has a test.
 ### 9. Documented
 Code serves the specification. Comments explain why, not what. The spec is the documentation.
 
+### 10. Standards-Compliant
+Follow Snowflake standards to avoid runtime errors. No guessing at formats or APIs.
+
+**Semantic Model Requirements:**
+- `verified_at` must be Unix timestamp (int64), NOT ISO date strings
+- `metrics` and `filters` must be inside table definitions, NOT top-level
+- All tables in relationships MUST have `primary_key` defined
+- Use `@DATABASE.SCHEMA.STAGE/path` format for semantic model references
+
+**Python Project Requirements:**
+- Target Python `>=3.10,<3.12` for Snowflake compatibility
+- Use `httpx` for HTTP clients (not `requests`) - better async support
+- Use REST API for Cortex Analyst (not Python SDK) - fewer dependencies
+- Account URLs: convert underscores to hyphens (`ORGNAME_ACCOUNT` → `orgname-account`)
+
+**API Requirements:**
+- SSE events must include both `event:` and `data:` lines
+- Use consistent event names: `thinking`, `sql`, `data`, `error`, `done`
+
 ---
 
 ## Applying the Principles
