@@ -683,6 +683,566 @@ export default function Chat() {
 }
 ```
 
+#### U6: Chart Components (Recharts)
+
+> **Recommended Library**: Recharts - React-native, composable, good defaults.
+> Add to package.json: `"recharts": "^2.12.0"`
+
+**Chart Component Pattern** - Reusable wrapper with consistent styling:
+
+```typescript
+// frontend/src/components/charts/SalesChart.tsx
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
+
+interface SalesChartProps {
+  data: { date: string; sales: number }[];
+  title?: string;
+}
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+
+export default function SalesChart({ data, title = 'Sales Trend' }: SalesChartProps) {
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6b7280' }} />
+            <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12, fill: '#6b7280' }} />
+            <Tooltip formatter={(value: number) => [formatCurrency(value), 'Sales']} />
+            <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+```
+
+**Bar Chart Pattern** (horizontal, for rankings):
+```typescript
+// frontend/src/components/charts/TopProductsChart.tsx
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+export default function TopProductsChart({ data, title = 'Top Products' }) {
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} layout="vertical" margin={{ left: 80 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+            <XAxis type="number" />
+            <YAxis type="category" dataKey="name" width={75} />
+            <Tooltip />
+            <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+```
+
+**Pie Chart Pattern** (for category breakdowns):
+```typescript
+// frontend/src/components/charts/CategoryChart.tsx
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+export default function CategoryChart({ data, title = 'By Category' }) {
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
+              {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+```
+
+**Chart API Endpoints Pattern** (backend):
+```python
+# backend/app/routers/metrics.py - Add chart data endpoints
+
+@router.get("/sales-trend")
+async def get_sales_trend():
+    """Daily sales for line chart."""
+    results = connector.query("""
+        SELECT TO_CHAR(order_date, 'YYYY-MM-DD') as date, SUM(total_amount) as sales
+        FROM orders WHERE order_date >= DATEADD(day, -30, CURRENT_DATE())
+        GROUP BY order_date ORDER BY order_date
+    """)
+    return [{"date": r["DATE"], "sales": float(r["SALES"])} for r in results]
+
+@router.get("/top-products")
+async def get_top_products():
+    """Top 10 products for bar chart."""
+    results = connector.query("""
+        SELECT p.name, SUM(oi.subtotal) as sales
+        FROM order_items oi JOIN products p ON oi.product_id = p.product_id
+        GROUP BY p.name ORDER BY sales DESC LIMIT 10
+    """)
+    return [{"name": r["NAME"], "value": float(r["SALES"])} for r in results]
+
+@router.get("/sales-by-category")
+async def get_sales_by_category():
+    """Category breakdown for pie chart."""
+    results = connector.query("""
+        SELECT p.category as name, SUM(oi.subtotal) as value
+        FROM order_items oi JOIN products p ON oi.product_id = p.product_id
+        GROUP BY p.category ORDER BY value DESC
+    """)
+    return [{"name": r["NAME"], "value": float(r["VALUE"])} for r in results]
+```
+
+#### U7: Dashboard Layout & Visual Hierarchy
+
+> **Key Principle**: Dashboards need clear information hierarchy with distinct sections.
+
+**Dashboard Structure Pattern**:
+```typescript
+// frontend/src/pages/Dashboard.tsx
+export default function Dashboard() {
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
+  
+  return (
+    <div className="space-y-8">
+      {/* Header with controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">Analytics overview</p>
+        </div>
+        <DateRangeSelector value={dateRange} onChange={setDateRange} />
+      </div>
+
+      {/* Section: Key Metrics (KPI row) */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Key Metrics</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* MetricsCard components */}
+        </div>
+      </section>
+
+      {/* Section: Charts (full-width then 2-up) */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Trends</h2>
+        <SalesChart data={salesTrend} />
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Breakdown</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TopProductsChart data={topProducts} />
+          <CategoryChart data={categoryData} />
+        </div>
+      </section>
+
+      {/* Section: Data Table */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h2>
+        <RecentOrdersTable orders={recentOrders} />
+      </section>
+    </div>
+  );
+}
+```
+
+**Date Range Selector Pattern**:
+```typescript
+// frontend/src/components/DateRangeSelector.tsx
+type DateRange = '7d' | '30d' | '90d';
+
+interface Props {
+  value: DateRange;
+  onChange: (range: DateRange) => void;
+}
+
+export default function DateRangeSelector({ value, onChange }: Props) {
+  const ranges: { key: DateRange; label: string }[] = [
+    { key: '7d', label: '7 Days' },
+    { key: '30d', label: '30 Days' },
+    { key: '90d', label: '90 Days' },
+  ];
+
+  return (
+    <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+      {ranges.map(({ key, label }) => (
+        <button
+          key={key}
+          onClick={() => onChange(key)}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            value === key ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+**Data Table Pattern**:
+```typescript
+// frontend/src/components/DataTable.tsx
+interface Column<T> {
+  key: keyof T;
+  header: string;
+  align?: 'left' | 'right';
+  render?: (value: T[keyof T], row: T) => React.ReactNode;
+}
+
+interface Props<T> {
+  data: T[];
+  columns: Column<T>[];
+  title?: string;
+}
+
+export default function DataTable<T extends { id: number | string }>({ data, columns, title }: Props<T>) {
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      {title && (
+        <div className="px-4 py-3 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              {columns.map((col) => (
+                <th
+                  key={String(col.key)}
+                  className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                    col.align === 'right' ? 'text-right' : 'text-left'
+                  }`}
+                >
+                  {col.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {data.map((row) => (
+              <tr key={row.id} className="hover:bg-gray-50">
+                {columns.map((col) => (
+                  <td
+                    key={String(col.key)}
+                    className={`px-4 py-3 whitespace-nowrap text-sm ${
+                      col.align === 'right' ? 'text-right' : 'text-left'
+                    }`}
+                  >
+                    {col.render ? col.render(row[col.key], row) : String(row[col.key])}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+```
+
+**Status Badge Pattern**:
+```typescript
+const statusColors: Record<string, string> = {
+  completed: 'bg-green-100 text-green-800',
+  pending: 'bg-yellow-100 text-yellow-800',
+  shipped: 'bg-blue-100 text-blue-800',
+  cancelled: 'bg-red-100 text-red-800',
+};
+
+// Usage in render function:
+render: (status) => (
+  <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
+    {status}
+  </span>
+)
+```
+
+**Recent Orders Endpoint Pattern** (backend):
+```python
+@router.get("/recent-orders")
+async def get_recent_orders():
+    """10 most recent orders for dashboard table."""
+    results = connector.query("""
+        SELECT o.order_id, c.first_name || ' ' || c.last_name as customer_name,
+               TO_CHAR(o.order_date, 'YYYY-MM-DD') as order_date,
+               o.total_amount, o.status
+        FROM orders o JOIN customers c ON o.customer_id = c.customer_id
+        ORDER BY o.order_date DESC, o.order_id DESC LIMIT 10
+    """)
+    return [{"order_id": r["ORDER_ID"], "customer_name": r["CUSTOMER_NAME"],
+             "order_date": r["ORDER_DATE"], "total_amount": float(r["TOTAL_AMOUNT"]),
+             "status": r["STATUS"]} for r in results]
+```
+
+#### U8: Dark Mode Support
+
+> **Approach**: Tailwind CSS class-based dark mode with React context for state management.
+
+**1. Tailwind Configuration**:
+```javascript
+// tailwind.config.js
+export default {
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  darkMode: 'class',  // Enable class-based dark mode
+  theme: { extend: {} },
+  plugins: [],
+}
+```
+
+**2. Theme Context Pattern**:
+```typescript
+// frontend/src/contexts/ThemeContext.tsx
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+
+type Theme = 'light' | 'dark';
+
+interface ThemeContextType {
+  theme: Theme;
+  toggleTheme: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(() => {
+    const stored = localStorage.getItem('theme') as Theme | null;
+    if (stored) return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export const useTheme = () => {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
+  return ctx;
+};
+```
+
+**3. Theme Toggle Component**:
+```typescript
+// frontend/src/components/ThemeToggle.tsx
+import { useTheme } from '../contexts/ThemeContext';
+
+export default function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <button
+      onClick={toggleTheme}
+      className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+      aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+    >
+      {theme === 'light' ? '🌙' : '☀️'}
+    </button>
+  );
+}
+```
+
+**4. App.tsx Integration**:
+```typescript
+// Wrap app with ThemeProvider
+import { ThemeProvider } from './contexts/ThemeContext';
+
+function App() {
+  return (
+    <ThemeProvider>
+      <BrowserRouter>...</BrowserRouter>
+    </ThemeProvider>
+  );
+}
+```
+
+**5. Dark Mode Class Patterns**:
+```typescript
+// Background and borders
+className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+
+// Text colors
+className="text-gray-900 dark:text-white"           // Primary text
+className="text-gray-600 dark:text-gray-300"        // Secondary text
+className="text-gray-500 dark:text-gray-400"        // Muted text
+
+// Interactive states
+className="hover:bg-gray-100 dark:hover:bg-gray-700"
+
+// Status badges
+const statusColors = {
+  completed: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+  pending: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
+};
+
+// Layout wrapper
+<div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+```
+
+**6. Recharts Dark Mode** (use theme context):
+```typescript
+const { theme } = useTheme();
+const isDark = theme === 'dark';
+
+<Tooltip contentStyle={{
+  backgroundColor: isDark ? '#1f2937' : '#fff',
+  border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+  color: isDark ? '#f3f4f6' : '#111827',
+}} />
+<CartesianGrid stroke={isDark ? '#374151' : '#e5e7eb'} />
+<XAxis tick={{ fill: isDark ? '#9ca3af' : '#6b7280' }} />
+```
+
+#### U9: Mobile Responsiveness
+
+> **Approach**: Mobile-first design with Tailwind breakpoints (sm: 640px, md: 768px, lg: 1024px).
+
+**1. Responsive Layout with Mobile Menu**:
+```typescript
+// frontend/src/components/Layout.tsx
+import { useState } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
+
+export default function Layout() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+      isActive ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+               : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+    }`;
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            {/* Logo - shorter text on mobile */}
+            <span className="font-semibold text-gray-900 dark:text-white">
+              <span className="hidden sm:inline">Full App Name</span>
+              <span className="sm:hidden">App</span>
+            </span>
+
+            {/* Desktop nav - hidden on mobile */}
+            <nav className="hidden sm:flex gap-2">
+              <NavLink to="/page1" className={navLinkClass}>Page 1</NavLink>
+              <NavLink to="/page2" className={navLinkClass}>Page 2</NavLink>
+            </nav>
+
+            {/* Mobile hamburger button */}
+            <button
+              className="sm:hidden p-2 rounded-lg border border-gray-200 dark:border-gray-700"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? '✕' : '☰'}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <nav className="sm:hidden px-4 py-3 space-y-1 border-t border-gray-200 dark:border-gray-700">
+            <NavLink to="/page1" className={navLinkClass} onClick={() => setMobileMenuOpen(false)}>
+              Page 1
+            </NavLink>
+            <NavLink to="/page2" className={navLinkClass} onClick={() => setMobileMenuOpen(false)}>
+              Page 2
+            </NavLink>
+          </nav>
+        )}
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+```
+
+**2. Responsive Grid Patterns**:
+```typescript
+// KPI cards: 1 col mobile → 2 cols tablet → 4 cols desktop
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+// Charts: 1 col mobile → 2 cols desktop
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+// Flexible header with stacking on mobile
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+```
+
+**3. Responsive Typography & Spacing**:
+```typescript
+// Headings
+<h1 className="text-xl sm:text-2xl font-bold">
+
+// Section spacing
+<div className="space-y-4 sm:space-y-6 lg:space-y-8">
+
+// Padding adjustments
+<main className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+```
+
+**4. Touch-Friendly Controls**:
+```typescript
+// Minimum 44x44px touch targets
+<button className="p-2 min-h-[44px] min-w-[44px]">
+
+// Larger tap areas on mobile
+<button className="px-3 py-2 sm:px-4 sm:py-2">
+```
+
+**5. Responsive Tables** (horizontal scroll on mobile):
+```typescript
+<div className="overflow-x-auto">
+  <table className="min-w-full">
+    {/* Table content */}
+  </table>
+</div>
+```
+
+**6. Recharts ResponsiveContainer** (automatic):
+```typescript
+// Already responsive - just set height
+<div className="h-48 sm:h-64">
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart data={data}>...</LineChart>
+  </ResponsiveContainer>
+</div>
+```
+
 ---
 
 ## Execution Flow
