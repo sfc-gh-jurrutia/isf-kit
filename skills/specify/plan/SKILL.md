@@ -116,6 +116,10 @@ Upon confirmation, create `specs/{demo-name}/plan.md` with:
 - SSE event contract
 - Implementation sequence
 
+## Stopping Points
+
+- ✋ After presenting architecture analysis (Step 5) - confirm before generating
+
 ## Output
 
 ```

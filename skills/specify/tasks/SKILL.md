@@ -110,6 +110,10 @@ U1 → U2 → U3, U4, U5 → U6
 | Streaming | B5 streaming, U5 SSE |
 | Multi-tenant | Tenant provisioning tasks |
 
+## Stopping Points
+
+- ✋ After presenting task summary (Step 4) - confirm before generating
+
 ## Output
 
 ```
