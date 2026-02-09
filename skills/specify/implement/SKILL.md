@@ -34,6 +34,8 @@ Select implementation mode:
 2. **Phase by Phase** - Implement one phase, confirm before continuing
 3. **Task by Task** - Implement one task, show results, wait for approval
 4. **Resume** - Continue from a specific task (e.g., "resume from B3")
+
+[1/2/3/4] [Cancel]
 ```
 
 ### Step 2: Work Through Tasks

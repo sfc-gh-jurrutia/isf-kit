@@ -29,20 +29,18 @@ If not found, prompt user to run `/speckit.specify` first.
 
 ### Step 2: Validate Domain Model
 
-```python
-from generators import validate_domain_model
+**Validate the domain model file:**
+- Check all required fields present
+- Verify entity relationships are valid
+- Calculate estimated row counts
 
-result = validate_domain_model("path/to/domain-model.yaml")
-
-if not result["valid"]:
-    for error in result["errors"]:
-        print(f"❌ {error}")
-    return
-
-print(f"✅ Valid domain model")
-print(f"   Entities: {', '.join(result['entities'])}")
-print(f"   Estimated rows: {result['estimated_rows']:,}")
 ```
+✅ Valid domain model
+   Entities: {entity_list}
+   Estimated rows: {estimated_rows}
+```
+
+If validation fails, list specific errors and prompt user to fix.
 
 ### Step 3: Confirm Generation Strategy
 
@@ -75,32 +73,18 @@ print(f"   Estimated rows: {result['estimated_rows']:,}")
 2. **Parquet Files** - Optimized for Snowflake staging
 3. **CSV Files** - Human-readable inspection
 4. **Direct Load** - Execute immediately in Snowflake
+
+[1/2/3/4] [Cancel]
 ```
 
 ### Step 4: Generate Data
 
-Based on user selection:
+Based on user selection, generate data using the appropriate method:
 
-```python
-from generators import generate_data
-
-data, handler = generate_data(
-    domain_model_path="path/to/domain-model.yaml",
-    database="DEMO_DB",
-    schema="PUBLIC",
-    seed=42,  # For reproducibility
-)
-
-# Output based on user choice
-if output_format == "sql":
-    handler.to_sql("output/load_data.sql")
-elif output_format == "parquet":
-    handler.to_parquet("output/staging/")
-elif output_format == "csv":
-    handler.to_csv("output/csv/")
-elif output_format == "execute":
-    handler.execute(connection="default")
-```
+- **SQL File**: Generate INSERT statements to `output/load_data.sql`
+- **Parquet Files**: Create staged files in `output/staging/` for COPY INTO
+- **CSV Files**: Generate human-readable files in `output/csv/`
+- **Direct Load**: Execute INSERT/COPY directly to Snowflake
 
 ## Industry-Specific Features
 
@@ -119,6 +103,10 @@ output/
 ├── csv/                   # CSV files for inspection
 └── copy_into.sql          # COPY INTO script
 ```
+
+## Stopping Points
+
+- ✋ After presenting data generation plan (Step 3) - confirm before generating
 
 ## Output
 

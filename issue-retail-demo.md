@@ -257,3 +257,22 @@ Issues discovered during testing after implementing improvements #8-11.
 - **Error**: `invalid literal for int() with base 10: 'ORD-00099905'`
 - **Solution**: Changed `order_id` type from `int` to `str` in both Pydantic model and response mapping
 - **Spec improvement**: Check actual data types in source tables, not just assumed types. IDs are often strings with prefixes.
+
+---
+
+# Third Iteration - TODOs
+
+Future enhancements identified during skill development and auditing.
+
+---
+
+## 15. Data Generators Module 🔲 TODO
+
+- **Context**: `skills/specify/generate/SKILL.md` references data generation capabilities
+- **Need**: Create reusable generators module for domain model validation and data generation
+- **Scope**:
+  - `generators/validate_domain_model.py` - Validate domain-model.yaml structure and relationships
+  - `generators/generate_data.py` - Generate realistic demo data based on domain model
+  - Support for industry-specific data patterns (Healthcare ICD-10, Retail SKUs, Financial transactions)
+  - Output formats: SQL INSERT, Parquet, CSV, Direct Load
+- **Spec improvement**: Add generators module to `skills/specify/generate/` with pyproject.toml for dependencies
