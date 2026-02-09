@@ -189,6 +189,7 @@ specify → clarify → plan → tasks → analyze → generate → implement
 | Generate task checklist | `tasks/SKILL.md` | After plan |
 | Pre-implementation review | `analyze/SKILL.md` | After tasks, before implement |
 | Generate demo data | `generate/SKILL.md` | After analyze |
+| Generate semantic model | `semantic-model/SKILL.md` | After specify, or standalone |
 | Implement the demo | `implement/SKILL.md` | After analyze passes |
 
 ## Error Handling

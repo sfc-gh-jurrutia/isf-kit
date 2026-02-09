@@ -36,9 +36,14 @@ isf-kit/
 │   ├── onboarding/            # Connection setup
 │   ├── switch-connection/     # Profile switching
 │   ├── specify/               # Demo specification workflow
+│   │   ├── clarify/           # Resolve ambiguities
 │   │   ├── plan/              # Generate implementation plan
 │   │   ├── tasks/             # Break plan into tasks
+│   │   ├── analyze/           # Pre-implementation review
 │   │   ├── generate/          # Generate data and artifacts
+│   │   │   ├── llm-powered/   # Cortex COMPLETE generation
+│   │   │   └── rule-based/    # Statistical generation
+│   │   ├── semantic-model/    # Generate Cortex Analyst YAML
 │   │   └── implement/         # Execute implementation
 │   └── skill-development/     # Meta: create & audit skills
 │       ├── audit-skill/
@@ -82,6 +87,36 @@ A spec is a complete demo definition including:
 | `tasks.md` | Granular task checklist |
 
 The `/specify` workflow guides you through creating all of these.
+
+## Data Generation
+
+The `/specify` workflow includes flexible data generation with three modes:
+
+| Mode | Command | Use Case |
+|------|---------|----------|
+| **Standard** | `/speckit.generate` | Python/Faker for simple data, SQL for scale |
+| **LLM-Powered** | `/speckit.generate` → Option 2 | Creative, varied data using Cortex COMPLETE |
+| **Rule-Based** | `/speckit.generate` → Option 3 | Deterministic with field correlations (age→income→credit) |
+
+### LLM-Powered Generation
+Uses `SNOWFLAKE.CORTEX.COMPLETE()` with industry-specific prompts to generate realistic, varied data. Best for demos requiring natural-looking content.
+
+### Rule-Based Generation
+Uses statistical distributions (normal, uniform, weighted choice) with configurable correlations between fields. Deterministic output, no Cortex credits consumed.
+
+## Semantic Model Generator
+
+Generate Cortex Analyst YAML automatically from existing tables:
+
+```
+/speckit.semantic-model
+```
+
+This will:
+1. Query `INFORMATION_SCHEMA.COLUMNS` for table structure
+2. Auto-classify columns as dimensions or measures
+3. Generate complete semantic model YAML
+4. Optionally create sample validation questions
 
 ## Example: Retail Demo
 

@@ -42,7 +42,38 @@ If not found, prompt user to run `/speckit.specify` first.
 
 If validation fails, list specific errors and prompt user to fix.
 
-### Step 3: Confirm Generation Strategy
+### Step 3: Select Generation Mode
+
+**⚠️ MANDATORY STOPPING POINT**: Ask user for generation approach.
+
+```
+Select data generation mode:
+
+1. **Standard** - Python/Faker for simple data, SQL for large scale
+2. **LLM-Powered** - Cortex COMPLETE for creative, realistic data
+3. **Rule-Based** - Statistical distributions with field correlations
+
+Recommendations:
+- Standard: Fast, simple datasets
+- LLM-Powered: Varied, natural-looking data (uses Cortex credits)
+- Rule-Based: Deterministic, correlated fields (age→income→credit)
+
+[1/2/3] [Cancel]
+```
+
+**Route based on selection:**
+
+| Selection | Action |
+|-----------|--------|
+| 1. Standard | Continue to Step 4 below |
+| 2. LLM-Powered | **Load** `llm-powered/SKILL.md` |
+| 3. Rule-Based | **Load** `rule-based/SKILL.md` |
+
+---
+
+## Standard Generation (Mode 1)
+
+### Step 4: Confirm Generation Strategy
 
 **⚠️ MANDATORY STOPPING POINT**: Present plan before generating.
 
@@ -106,7 +137,15 @@ output/
 
 ## Stopping Points
 
-- ✋ After presenting data generation plan (Step 3) - confirm before generating
+- ✋ After selecting generation mode (Step 3)
+- ✋ After presenting data generation plan (Step 4) - confirm before generating
+
+## Sub-Skills
+
+| Mode | Sub-Skill | Description |
+|------|-----------|-------------|
+| LLM-Powered | `llm-powered/SKILL.md` | Cortex COMPLETE with industry prompts |
+| Rule-Based | `rule-based/SKILL.md` | Statistical distributions + correlations |
 
 ## Output
 
