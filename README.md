@@ -45,6 +45,10 @@ isf-kit/
 │   │   │   └── rule-based/    # Statistical generation
 │   │   ├── semantic-model/    # Generate Cortex Analyst YAML
 │   │   └── implement/         # Execute implementation
+│   ├── references/            # Knowledge library (no routing)
+│   │   ├── ml/                # ML rules: sklearn-only, registry patterns
+│   │   ├── synthetic-data/    # Industry patterns: betting, streaming, etc.
+│   │   └── native-app/        # Jinja2 templates for app packaging
 │   └── skill-development/     # Meta: create & audit skills
 │       ├── audit-skill/
 │       ├── create-from-scratch/
@@ -73,6 +77,18 @@ Skills are markdown files (`SKILL.md`) that instruct Cortex Code how to perform 
 - **References** - Supporting documentation
 
 See `skills/skill-development/SKILL_BEST_PRACTICE.md` for authoring guidelines.
+
+## References
+
+The `skills/references/` directory contains **knowledge documents** that existing skills load when context is needed. These encode project-specific rules from [ai_solution_framework](https://github.com/...) without creating new workflow skills.
+
+| Directory | Content |
+|-----------|---------|
+| `ml/` | sklearn-only constraint, `_ENCODED` column naming, Feature Store workarounds, Model Registry patterns |
+| `synthetic-data/` | Industry data schemas for betting, streaming, music, healthcare, retail |
+| `native-app/` | Jinja2 templates for manifest.yml and setup_script.sql |
+
+**Design principle:** These are references, not workflows. Cortex Code already handles SQL execution, Python generation, and model training. References provide the project-specific rules that guide those native capabilities.
 
 ## Specs
 
