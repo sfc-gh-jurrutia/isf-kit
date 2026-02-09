@@ -118,12 +118,26 @@ Who is the primary user in the demo?
 
 **⚠️ MANDATORY STOPPING POINT**: Present summary and wait for confirmation before generating files.
 
-Upon confirmation, create these files in `specs/{slug}/`:
+Upon confirmation:
 
-- `spec.md` - Main specification
-- `domain-model.yaml` - Data entities
-- `sample-questions.yaml` - Validation questions
-- `semantic-model.yaml` - Cortex Analyst config
+1. **Determine spec number**: Find highest existing spec number in `specs/` directory, use N+1
+2. **Create folder**: `specs/{NNN}-{slug}/` (e.g., `specs/001-retail-demo/`)
+3. **Generate files**:
+   - `spec.md` - Main specification
+   - `domain-model.yaml` - Data entities
+   - `sample-questions.yaml` - Validation questions
+   - `semantic-model.yaml` - Cortex Analyst config
+
+**Numbering convention:**
+```bash
+# Check existing specs
+ls specs/ | grep -E '^[0-9]{3}-' | sort -r | head -1
+
+# Examples:
+specs/001-retail-demo/
+specs/002-healthcare-analytics/
+specs/003-financial-fraud/
+```
 
 ## Stopping Points
 
@@ -137,22 +151,45 @@ Upon confirmation, create these files in `specs/{slug}/`:
 ## Output
 
 ```
-✓ Specification files created in specs/{slug}/
+✓ Specification files created in specs/{NNN}-{slug}/
+
+Files generated:
+- spec.md
+- domain-model.yaml
+- sample-questions.yaml
+- semantic-model.yaml
 
 Next steps:
-1. Review the generated files
+1. Run `/speckit.clarify` to resolve any ambiguities
 2. Run `/speckit.plan` to create the technical architecture
 3. Run `/speckit.tasks` to break down into implementable tasks
+4. Run `/speckit.analyze` to validate before implementation
+```
+
+## Workflow Diagram
+
+```
+specify → clarify → plan → tasks → analyze → generate → implement
+   │         │        │       │        │          │          │
+   │         │        │       │        │          │          └─ Execute tasks
+   │         │        │       │        │          └─ Data & artifacts
+   │         │        │       │        └─ Quality gate
+   │         │        │       └─ Task breakdown
+   │         │        └─ Architecture
+   │         └─ Resolve ambiguities
+   └─ Gather requirements
 ```
 
 ## Sub-Skills
 
-| Intent | Load |
-|--------|------|
-| Create technical plan | `plan/SKILL.md` |
-| Generate task checklist | `tasks/SKILL.md` |
-| Generate demo data | `generate/SKILL.md` |
-| Implement the demo | `implement/SKILL.md` |
+| Intent | Load | When |
+|--------|------|------|
+| Resolve ambiguities | `clarify/SKILL.md` | After specify, before plan |
+| Create technical plan | `plan/SKILL.md` | After clarify |
+| Generate task checklist | `tasks/SKILL.md` | After plan |
+| Pre-implementation review | `analyze/SKILL.md` | After tasks, before implement |
+| Generate demo data | `generate/SKILL.md` | After analyze |
+| Implement the demo | `implement/SKILL.md` | After analyze passes |
 
 ## Error Handling
 

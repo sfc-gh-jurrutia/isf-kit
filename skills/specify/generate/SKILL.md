@@ -10,7 +10,7 @@ parent_skill: specify
 
 ## When to Load
 
-After domain model exists in `specs/{demo-name}/domain-model.yaml`.
+After `analyze/SKILL.md` passes quality checks, before or during implementation.
 
 ## Prerequisites
 

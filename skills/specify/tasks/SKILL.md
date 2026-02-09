@@ -77,6 +77,8 @@ From `plan.md`, extract:
 - {tasks not required for this demo}
 
 Generate task checklist?
+
+[Yes] [Modify] [Cancel]
 ```
 
 ### Step 5: Generate Task File
@@ -128,9 +130,9 @@ Phase Summary:
 
 Checkpoints defined at each phase boundary.
 
-Next step: Run `/speckit.implement` to start building
+Next step: Run `/speckit.analyze` to validate before implementation
 ```
 
 ## Next Skill
 
-After completion → Load `implement/SKILL.md`
+After completion → Load `analyze/SKILL.md`

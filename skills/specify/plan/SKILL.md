@@ -10,7 +10,7 @@ parent_skill: specify
 
 ## When to Load
 
-After `specify/SKILL.md` has generated specification files.
+After `clarify/SKILL.md` has resolved specification ambiguities (or directly after specify if clarification skipped).
 
 ## Prerequisites
 
@@ -103,6 +103,8 @@ Does demo need real-time responses?
 **Cortex Features**: {implementation approach}
 
 Does this architecture approach look right?
+
+[Yes, generate plan] [Modify] [Cancel]
 ```
 
 ### Step 6: Generate Plan
