@@ -17,7 +17,7 @@ Audit (mandatory, must pass)
        ↓
 Tag Version + Update Metadata
        ↓
-Approve?
+Approve? _____
     |        |
    Yes      No → STOP (fix issues, re-enter)
     |
