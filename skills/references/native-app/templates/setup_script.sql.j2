@@ -1,0 +1,163 @@
+-- Snowflake Native App Setup Script
+-- This runs in the CONSUMER account when the app is installed
+-- Variables in {{ }} are filled by Cortex Code based on user inputs
+
+-- ============================================
+-- APPLICATION METADATA
+-- ============================================
+-- App Name: {{ app_name }}
+-- Version: {{ version }}
+-- Created: {{ created_date }}
+-- Description: {{ description }}
+-- ============================================
+
+CREATE APPLICATION ROLE IF NOT EXISTS {{ app_role | default('APP_USER') }};
+CREATE OR ALTER VERSIONED SCHEMA {{ schema_name | default('CORE') }};
+
+-- Grant schema usage to app role
+GRANT USAGE ON SCHEMA {{ schema_name | default('CORE') }} TO APPLICATION ROLE {{ app_role | default('APP_USER') }};
+
+{% if include_procedures %}
+-- ============================================
+-- STORED PROCEDURES
+-- ============================================
+{% for proc in procedures %}
+CREATE OR REPLACE PROCEDURE {{ schema_name | default('CORE') }}.{{ proc.name }}(
+    {%- for param in proc.parameters %}
+    {{ param.name }} {{ param.type }}{% if not loop.last %},{% endif %}
+    {%- endfor %}
+)
+RETURNS {{ proc.returns }}
+LANGUAGE {{ proc.language | default('SQL') }}
+{% if proc.language == 'PYTHON' %}
+RUNTIME_VERSION = '3.10'
+PACKAGES = ({{ proc.packages | join(', ') }})
+HANDLER = '{{ proc.handler }}'
+{% endif %}
+AS
+$$
+{{ proc.body }}
+$$;
+
+GRANT USAGE ON PROCEDURE {{ schema_name | default('CORE') }}.{{ proc.name }}({{ proc.signature }}) TO APPLICATION ROLE {{ app_role | default('APP_USER') }};
+
+{% endfor %}
+{% endif %}
+
+{% if include_udfs %}
+-- ============================================
+-- USER-DEFINED FUNCTIONS
+-- ============================================
+{% for udf in udfs %}
+CREATE OR REPLACE FUNCTION {{ schema_name | default('CORE') }}.{{ udf.name }}(
+    {%- for param in udf.parameters %}
+    {{ param.name }} {{ param.type }}{% if not loop.last %},{% endif %}
+    {%- endfor %}
+)
+RETURNS {{ udf.returns }}
+LANGUAGE {{ udf.language | default('SQL') }}
+{% if udf.language == 'PYTHON' %}
+RUNTIME_VERSION = '3.10'
+PACKAGES = ({{ udf.packages | join(', ') }})
+HANDLER = '{{ udf.handler }}'
+{% endif %}
+AS
+$$
+{{ udf.body }}
+$$;
+
+GRANT USAGE ON FUNCTION {{ schema_name | default('CORE') }}.{{ udf.name }}({{ udf.signature }}) TO APPLICATION ROLE {{ app_role | default('APP_USER') }};
+
+{% endfor %}
+{% endif %}
+
+{% if include_model %}
+-- ============================================
+-- MODEL INFERENCE
+-- ============================================
+-- Reference to model registered in provider account
+-- Consumer must grant reference during installation
+
+CREATE OR REPLACE PROCEDURE {{ schema_name | default('CORE') }}.RUN_INFERENCE(
+    INPUT_TABLE VARCHAR,
+    OUTPUT_TABLE VARCHAR
+)
+RETURNS VARCHAR
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.10'
+PACKAGES = ('snowflake-snowpark-python', 'snowflake-ml-python')
+HANDLER = 'run_inference'
+AS
+$$
+def run_inference(session, input_table: str, output_table: str) -> str:
+    from snowflake.ml.registry import Registry
+    
+    # Get model from reference
+    registry = Registry(session=session)
+    model = registry.get_model('{{ model_name }}')
+    mv = model.default
+    
+    # Load input data
+    input_df = session.table(input_table)
+    
+    # Run prediction
+    predictions = mv.run(input_df, function_name='predict')
+    
+    # Save results
+    predictions.write.mode('overwrite').save_as_table(output_table)
+    
+    return f'Predictions saved to {output_table}'
+$$;
+
+GRANT USAGE ON PROCEDURE {{ schema_name | default('CORE') }}.RUN_INFERENCE(VARCHAR, VARCHAR) TO APPLICATION ROLE {{ app_role | default('APP_USER') }};
+
+{% endif %}
+
+{% if include_streamlit %}
+-- ============================================
+-- STREAMLIT APP
+-- ============================================
+CREATE OR REPLACE STREAMLIT {{ schema_name | default('CORE') }}.{{ streamlit_name | default('DASHBOARD') }}
+  FROM '/streamlit'
+  MAIN_FILE = '/{{ streamlit_file | default('app.py') }}';
+
+GRANT USAGE ON STREAMLIT {{ schema_name | default('CORE') }}.{{ streamlit_name | default('DASHBOARD') }} TO APPLICATION ROLE {{ app_role | default('APP_USER') }};
+
+{% endif %}
+
+-- ============================================
+-- CALLBACK PROCEDURES FOR REFERENCES
+-- ============================================
+{% for ref in references %}
+CREATE OR REPLACE PROCEDURE {{ schema_name | default('CORE') }}.REGISTER_{{ ref.name | upper }}_CALLBACK(ref_name VARCHAR)
+RETURNS VARCHAR
+LANGUAGE SQL
+AS
+$$
+BEGIN
+    -- Store reference for later use
+    INSERT INTO {{ schema_name | default('CORE') }}.APP_REFERENCES (REF_TYPE, REF_NAME, REGISTERED_AT)
+    VALUES ('{{ ref.object_type }}', :ref_name, CURRENT_TIMESTAMP());
+    RETURN 'Reference registered: ' || ref_name;
+END;
+$$;
+
+{% endfor %}
+
+-- ============================================
+-- FINALIZE SETUP
+-- ============================================
+-- Log installation
+CREATE TABLE IF NOT EXISTS {{ schema_name | default('CORE') }}.APP_METADATA (
+    KEY VARCHAR,
+    VALUE VARCHAR,
+    UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
+INSERT INTO {{ schema_name | default('CORE') }}.APP_METADATA (KEY, VALUE)
+VALUES 
+    ('APP_NAME', '{{ app_name }}'),
+    ('VERSION', '{{ version }}'),
+    ('INSTALLED_AT', CURRENT_TIMESTAMP()::VARCHAR);
+
+GRANT SELECT ON TABLE {{ schema_name | default('CORE') }}.APP_METADATA TO APPLICATION ROLE {{ app_role | default('APP_USER') }};

@@ -1,0 +1,39 @@
+# This is a Snowflake Native App manifest template
+# Variables in {{ }} are filled by Cortex Code based on user inputs
+
+manifest_version: 1
+
+version:
+  name: {{ app_name }}
+  label: "{{ app_label | default(app_name) }}"
+  comment: "{{ description }}"
+
+artifacts:
+  readme: README.md
+  setup_script: setup_script.sql
+  default_streamlit: {% if include_streamlit %}streamlit/{{ streamlit_file }}{% else %}null{% endif %}
+
+configuration:
+  log_level: INFO
+  trace_level: OFF
+
+privileges:
+  - CREATE DATABASE:
+      description: "Create consumer database for app objects"
+  - CREATE WAREHOUSE:
+      description: "Create compute for inference (optional)"
+{% if include_model %}
+  - USAGE ON MODEL {{ model_name }}:
+      description: "Access to ML model for inference"
+{% endif %}
+
+references:
+{% for ref in references %}
+  - {{ ref.name }}:
+      label: "{{ ref.label }}"
+      description: "{{ ref.description }}"
+      privileges:
+        - {{ ref.privilege }}
+      object_type: {{ ref.object_type }}
+      register_callback: config.register_{{ ref.name | lower }}_callback
+{% endfor %}
