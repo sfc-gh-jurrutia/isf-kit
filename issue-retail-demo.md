@@ -276,3 +276,126 @@ Future enhancements identified during skill development and auditing.
   - Support for industry-specific data patterns (Healthcare ICD-10, Retail SKUs, Financial transactions)
   - Output formats: SQL INSERT, Parquet, CSV, Direct Load
 - **Spec improvement**: Add generators module to `skills/specify/generate/` with pyproject.toml for dependencies
+
+---
+
+## 16. Executive-Grade UI Templates ✅ RESOLVED (Feb 10, 2026)
+
+- **Context**: Demos needed more visually impressive dashboards for executive audiences
+- **Source**: Ported patterns from `aura-marketing-guardian` repository
+- **Scope**:
+  - Sovereign Light design system with persona/industry theming
+  - TechnicalMetadata component for data transparency
+  - Crisis/alert theming with threshold detection
+  - Chart-specific skeleton loaders
+  - Advanced visualizations (Sankey, NetworkGraph)
+
+**Files Created/Modified in `skills/specify/templates/ui/`:**
+
+| File | Description |
+|------|-------------|
+| `design-tokens.ts` | Sovereign Light palette, persona accents, industry overlays, crisis theming |
+| `components/TechnicalMetadata.tsx` | SQL/lineage/latency display for proving real Snowflake data |
+| `components/CrisisTheme.tsx` | `CrisisKPI`, `CrisisIndicator`, `CrisisAlertBanner` with threshold detection |
+| `components/Skeleton.tsx` | `SkeletonSankey`, `SkeletonBarChart`, `SkeletonLineChart`, `SkeletonDashboard` |
+| `charts/SankeyChart.tsx` | Customer journey/funnel flow with crisis mode |
+| `charts/NetworkGraph.tsx` | D3 force-directed relationship graphs |
+| `README.md` | Updated pattern catalog with all new components |
+
+**Key Patterns for Executive Dashboards:**
+
+1. **Sovereign Light Theme** - Clean, flat enterprise design (no excessive glows)
+2. **Persona Accents** - Role-based theming:
+   - Executive (CMO/CEO): Indigo - authority, trust
+   - Analyst: Emerald - growth, data-driven
+   - Operations: Amber - alertness, action
+3. **Industry Overlays** - Vertical-specific color tints:
+   - Retail: Orange
+   - Finance: Sky blue
+   - Healthcare: Teal
+   - Technology: Violet
+4. **Crisis Mode** - Dynamic colors when metrics breach thresholds (`getCrisisTheme()`)
+5. **TechnicalMetadata** - "Engineering Manifest" proving real data to skeptical executives
+
+**Specify Integration:**
+- All patterns now available in `skills/specify/templates/ui/` for generated demos
+- README.md updated with usage examples and API documentation
+- Components export from index files for easy importing
+
+---
+
+## Fourth Iteration - TODOs
+
+### 17. Apply Executive Templates to Retail Demo 🔲 TODO
+
+- **Context**: Executive templates created but not yet applied to retail-demo
+- **Scope**:
+  - Replace basic KPI cards with `CrisisKPI` for inventory alerts
+  - Add `SankeyChart` for customer purchase journey visualization
+  - Integrate `TechnicalMetadata` to show query SQL and lineage
+  - Apply Sovereign Light theme tokens
+- **Files to update**:
+  - `specs/retail-demo/frontend/src/pages/Dashboard.tsx`
+  - `specs/retail-demo/frontend/src/components/`
+
+### 18. Sankey Data Pipeline for Retail 🔲 TODO
+
+- **Context**: Need to create Snowflake data to power Sankey customer journey
+- **Scope**:
+  - Create `CUSTOMER_JOURNEY_FLOWS` dynamic table aggregating touchpoints
+  - Map: Traffic Source → Landing Page → Product View → Cart → Purchase/Abandon
+  - Add crisis detection for high abandonment rates
+- **Files to create**:
+  - `specs/retail-demo/snowflake/ddl/journey_flows.sql`
+  - Backend endpoint for journey data
+
+---
+
+## 19. Intelligent Visualization Selection ✅ RESOLVED (Feb 10, 2026)
+
+- **Problem**: During demo creation, visualization choices were made at implementation time with no user input
+- **Symptom**: Implementer had to guess which charts to use; no connection between user requirements and UI decisions
+- **Solution**: Added Step 5.5 "UI Strategy" to `/speckit.plan` with user confirmation
+
+**What was added:**
+
+| File | Change |
+|------|--------|
+| `templates/ui/visualization-matrix.md` | Decision matrix: question tags → charts, industry×persona → templates |
+| `plan/SKILL.md` | Step 5.5: UI Strategy Selection with confirmation stopping point |
+| `spec-template.md` | UI Strategy section to capture decisions |
+| `sample-questions-template.yaml` | `visualization` block per question (`recommended_chart`, `threshold`, `notes`) |
+| `implement/SKILL.md` | Checklist to apply UI decisions from plan.md |
+
+**New workflow:**
+```
+specify → clarify → plan ─────────────────────────→ tasks → implement
+                      │
+                      ├─ Step 5: Architecture
+                      │     ↓ user confirms
+                      └─ Step 5.5: UI Strategy (NEW)
+                            • Analyze questions by tags
+                            • Recommend page template
+                            • Assign charts per question
+                            • Configure theme (industry + persona)
+                            • User confirms or modifies
+                            ↓
+                          Step 6: Generate plan.md with UI Strategy
+```
+
+**Visualization matrix logic:**
+- `time_series`, `trend` → LineChart / AreaChart
+- `breakdown`, `group_by` → BarChart / HorizontalBarChart
+- `distribution`, `percent` → PieChart
+- `ranking`, `top_n` → HorizontalBarChart
+- `single_value`, `kpi` → KPICard / CrisisKPI (if threshold)
+- `flow`, `journey`, `funnel` → SankeyChart
+- `relationship`, `network` → NetworkGraph
+
+**Template selection:**
+- Executive persona → `ExecutiveDashboard`
+- Analyst + Cortex Agent/Analyst → `ChatAnalytics`
+- Analyst + SQL focus → `DataExplorer`
+- Operations → `ExecutiveDashboard` + `CrisisKPI`
+
+**✅ Resolution:** User now confirms visualization choices during planning phase, not implementation.

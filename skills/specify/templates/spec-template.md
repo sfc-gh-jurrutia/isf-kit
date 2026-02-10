@@ -148,6 +148,48 @@ The demo must successfully answer these natural language questions:
 
 ---
 
+## UI Strategy
+
+> Generated during `/speckit.plan` based on industry, persona, and question analysis.
+> See `templates/ui/visualization-matrix.md` for decision logic.
+
+### Page Template
+
+| Selection | Rationale |
+|-----------|-----------|
+| {ExecutiveDashboard / ChatAnalytics / DataExplorer} | {Why this template fits persona + features} |
+
+### Theme Configuration
+
+| Setting | Value | Color |
+|---------|-------|-------|
+| Industry Overlay | {industry} | {color hex} |
+| Persona Accent | {persona} | {color hex} |
+
+### Visualization Assignments
+
+| Question | Result Type | Chart Component | Notes |
+|----------|-------------|-----------------|-------|
+| "{Question 1}" | {type} | {ChartComponent} | {threshold, special handling} |
+| "{Question 2}" | {type} | {ChartComponent} | |
+| "{Question 3}" | {type} | {ChartComponent} | |
+
+### Executive Components
+
+| Component | Include | Rationale |
+|-----------|---------|-----------|
+| TechnicalMetadata | {Yes/No} | {Why - data provenance needs} |
+| CrisisKPI | {Yes/No} | {Why - threshold alerts needed} |
+| Skeleton Loaders | {Yes/No} | {Why - loading state UX} |
+
+### Dashboard Layout
+
+```
+{ASCII diagram of layout - KPI grid, chart positions, etc.}
+```
+
+---
+
 ## Out of Scope
 
 The following are explicitly **NOT** included in this demo:

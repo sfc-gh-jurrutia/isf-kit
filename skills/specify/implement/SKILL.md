@@ -101,7 +101,41 @@ Note: Double newline required after data line.
 
 **Use UI Templates from `templates/ui/`** - See `templates/ui/README.md` for full catalog.
 
-### Page Templates (Start Here)
+### Apply UI Strategy from Plan
+
+Before implementing frontend, read the **UI Strategy** section from `plan.md` (generated in `/speckit.plan` Step 5.5).
+
+The UI Strategy specifies:
+- **Page Template**: Which template to use (ExecutiveDashboard, ChatAnalytics, DataExplorer)
+- **Theme Configuration**: Industry overlay + persona accent colors
+- **Chart Assignments**: Which chart component for each question
+- **Executive Components**: Whether to include TechnicalMetadata, CrisisKPI, Skeletons
+
+**Do NOT guess visualizations** - use the confirmed selections from plan.md.
+
+### Implementation Checklist
+
+Apply UI decisions from `plan.md` and `sample-questions.yaml`:
+
+```
+□ Copy page template from templates/ui/pages/{template_name}.tsx
+□ Apply theme tokens:
+  - Import industryTints.{industry} for accent colors
+  - Import personaAccents.{persona} for primary colors
+  - Update tailwind.config.js with custom colors if needed
+□ For each question in sample-questions.yaml:
+  - Use visualization.recommended_chart component
+  - If threshold is set, use CrisisKPI instead of KPICard
+  - Apply visualization.notes for special handling
+□ Add executive components as specified:
+  - TechnicalMetadata: Add to key charts showing SQL/lineage
+  - CrisisKPI: Replace KPICard for metrics with thresholds
+  - Skeleton loaders: Add chart-specific skeletons for loading states
+□ Wire up API endpoints to chart data props
+□ Test responsive breakpoints
+```
+
+### Page Templates (Reference)
 
 Choose based on frontend pattern from plan.md:
 

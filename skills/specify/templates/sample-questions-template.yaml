@@ -34,6 +34,13 @@ questions:
     tags:
       - "count"
       - "aggregate"
+    
+    # Visualization recommendation (populated during /speckit.plan)
+    visualization:
+      recommended_chart: "KPICard"  # From visualization-matrix.md
+      chart_rationale: "Single aggregate value, best shown as KPI"
+      threshold: null  # If set, use CrisisKPI instead
+      notes: ""
 
   - id: "q2"
     text: "{Question with breakdown/grouping}"
@@ -57,6 +64,12 @@ questions:
     tags:
       - "breakdown"
       - "group_by"
+    
+    visualization:
+      recommended_chart: "BarChart"  # or HorizontalBarChart if >5 categories
+      chart_rationale: "Categorical breakdown, comparison across groups"
+      threshold: null
+      notes: "Switch to HorizontalBarChart if labels are long"
 
   - id: "q3"
     text: "{Question with time comparison}"
@@ -80,6 +93,12 @@ questions:
     tags:
       - "trend"
       - "time_series"
+    
+    visualization:
+      recommended_chart: "LineChart"
+      chart_rationale: "Time series data, showing trend over time"
+      threshold: null
+      notes: "Use AreaChart if showing cumulative/stacked metrics"
 
   # Priority 2 - Should work, nice to have
   - id: "q4"
@@ -104,6 +123,12 @@ questions:
     tags:
       - "join"
       - "multi_entity"
+    
+    visualization:
+      recommended_chart: "DataTable"
+      chart_rationale: "Multi-column result, best as interactive table"
+      threshold: null
+      notes: "Add sorting and filtering for exploration"
 
   # Follow-up questions (test conversation context)
   - id: "q5"
@@ -119,6 +144,12 @@ questions:
     tags:
       - "follow_up"
       - "context"
+    
+    visualization:
+      recommended_chart: null  # Inherits from parent or dynamic
+      chart_rationale: "Context-dependent, may reuse parent visualization"
+      threshold: null
+      notes: ""
 
 # Validation rules
 validation:
@@ -139,19 +170,37 @@ categories:
   aggregations:
     questions: ["q1"]
     coverage: "required"
+    default_chart: "KPICard"
     
   breakdowns:
     questions: ["q2"]
     coverage: "required"
+    default_chart: "BarChart"
     
   trends:
     questions: ["q3"]
     coverage: "required"
+    default_chart: "LineChart"
     
   joins:
     questions: ["q4"]
     coverage: "optional"
+    default_chart: "DataTable"
     
   follow_ups:
     questions: ["q5"]
     coverage: "optional"
+    default_chart: null
+
+# Visualization summary (populated during /speckit.plan)
+visualization_summary:
+  page_template: null  # ExecutiveDashboard | ChatAnalytics | DataExplorer
+  industry_theme: null  # retail | finance | healthcare | technology
+  persona_accent: null  # executive | analyst | operations
+  charts_used:
+    - chart_type: null
+      count: 0
+  executive_components:
+    technical_metadata: false
+    crisis_kpi: false
+    skeleton_loaders: false
