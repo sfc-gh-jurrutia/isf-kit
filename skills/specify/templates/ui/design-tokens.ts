@@ -1,77 +1,254 @@
 /**
- * Design Tokens - Standardized values for consistent UI
+ * Design Tokens - Sovereign Light Theme System
  * 
- * Usage: Import these tokens in components for consistent styling.
- * These values align with Tailwind CSS defaults where applicable.
+ * Enterprise-grade visual system for executive dashboards.
+ * Inspired by aura-marketing-guardian's "Sovereign Light" palette.
+ * 
+ * Features:
+ * - Light theme with clean, flat design (no excessive glows)
+ * - Persona-based accent colors for role customization
+ * - Industry overlays for vertical-specific theming
+ * - Crisis/alert state theming with threshold detection
+ * 
+ * Usage: Import tokens and use CSS custom properties for dynamic theming.
  */
 
 // =============================================================================
-// COLOR PALETTE
+// SOVEREIGN LIGHT PALETTE
 // =============================================================================
 
 export const colors = {
-  // Primary brand colors
+  // Background system
+  background: {
+    main: '#f1f5f9',      // Slate 100 - Main app background
+    card: '#ffffff',       // Pure white cards
+    elevated: '#f8fafc',   // Slate 50 - Hover/elevated surfaces
+    overlay: 'rgba(15, 23, 42, 0.4)', // Modal overlays
+  },
+
+  // Border system
+  border: {
+    subtle: '#e2e8f0',    // Slate 200 - Primary borders
+    strong: '#cbd5e1',    // Slate 300 - Emphasized borders
+  },
+
+  // Text system (dark for maximum readability)
+  text: {
+    primary: '#0f172a',   // Slate 900 - Headers
+    secondary: '#334155', // Slate 700 - Body text
+    muted: '#64748b',     // Slate 500 - Subtext
+    dim: '#94a3b8',       // Slate 400 - Disabled/placeholder
+  },
+
+  // Primary brand colors (Indigo)
   primary: {
-    50: '#eff6ff',
-    100: '#dbeafe',
-    200: '#bfdbfe',
-    300: '#93c5fd',
-    400: '#60a5fa',
-    500: '#3b82f6',  // Main primary
-    600: '#2563eb',
-    700: '#1d4ed8',
-    800: '#1e40af',
-    900: '#1e3a8a',
+    50: '#eef2ff',
+    100: '#e0e7ff',
+    200: '#c7d2fe',
+    300: '#a5b4fc',
+    400: '#818cf8',
+    500: '#6366f1',  // Main primary (Indigo)
+    600: '#4f46e5',
+    700: '#4338ca',
+    800: '#3730a3',
+    900: '#312e81',
   },
   
   // Semantic colors
   success: {
-    light: '#dcfce7',
-    main: '#22c55e',
-    dark: '#15803d',
+    50: '#ecfdf5',
+    100: '#d1fae5',
+    light: '#a7f3d0',
+    main: '#10b981',  // Emerald
+    dark: '#059669',
   },
   warning: {
-    light: '#fef3c7',
-    main: '#f59e0b',
-    dark: '#b45309',
+    50: '#fffbeb',
+    100: '#fef3c7',
+    light: '#fde68a',
+    main: '#f59e0b',  // Amber
+    dark: '#d97706',
   },
   error: {
-    light: '#fee2e2',
-    main: '#ef4444',
-    dark: '#b91c1c',
+    50: '#fef2f2',
+    100: '#fee2e2',
+    light: '#fecaca',
+    main: '#ef4444',  // Red
+    dark: '#dc2626',
   },
   info: {
-    light: '#dbeafe',
-    main: '#3b82f6',
-    dark: '#1d4ed8',
+    50: '#eff6ff',
+    100: '#dbeafe',
+    light: '#bfdbfe',
+    main: '#3b82f6',  // Blue
+    dark: '#2563eb',
   },
 
-  // Chart palette (colorblind-friendly)
+  // Chart palette (professional, colorblind-friendly)
   chart: [
-    '#3b82f6', // blue
-    '#10b981', // emerald
-    '#f59e0b', // amber
-    '#ef4444', // red
-    '#8b5cf6', // violet
-    '#ec4899', // pink
-    '#06b6d4', // cyan
-    '#84cc16', // lime
+    '#6366f1', // Indigo - primary
+    '#10b981', // Emerald - success
+    '#f59e0b', // Amber - warning
+    '#f43f5e', // Rose - crisis
+    '#8b5cf6', // Violet
+    '#06b6d4', // Cyan
+    '#ec4899', // Pink
+    '#84cc16', // Lime
   ],
 
-  // Grayscale (for text, borders, backgrounds)
-  gray: {
-    50: '#f9fafb',
-    100: '#f3f4f6',
-    200: '#e5e7eb',
-    300: '#d1d5db',
-    400: '#9ca3af',
-    500: '#6b7280',
-    600: '#4b5563',
-    700: '#374151',
-    800: '#1f2937',
-    900: '#111827',
+  // Slate scale (utility)
+  slate: {
+    50: '#f8fafc',
+    100: '#f1f5f9',
+    200: '#e2e8f0',
+    300: '#cbd5e1',
+    400: '#94a3b8',
+    500: '#64748b',
+    600: '#475569',
+    700: '#334155',
+    800: '#1e293b',
+    900: '#0f172a',
   },
 } as const;
+
+// =============================================================================
+// PERSONA ACCENT SYSTEM
+// =============================================================================
+// Role-based theming for different user personas
+
+export type PersonaType = 'executive' | 'analyst' | 'operations' | 'default';
+
+export const personaAccents = {
+  // Executive/CMO - Indigo (authority, trust)
+  executive: {
+    accent: '#6366f1',
+    accentRgb: '99, 102, 241',
+    accentHover: '#4f46e5',
+    accentMuted: '#e0e7ff',
+    accentLight: '#c7d2fe',
+    accentDark: '#4338ca',
+  },
+  
+  // Brand Strategist/Analyst - Emerald (growth, success)
+  analyst: {
+    accent: '#10b981',
+    accentRgb: '16, 185, 129',
+    accentHover: '#059669',
+    accentMuted: '#d1fae5',
+    accentLight: '#a7f3d0',
+    accentDark: '#047857',
+  },
+  
+  // Operations/Sentinel - Amber (alertness, action)
+  operations: {
+    accent: '#f59e0b',
+    accentRgb: '245, 158, 11',
+    accentHover: '#d97706',
+    accentMuted: '#fef3c7',
+    accentLight: '#fde68a',
+    accentDark: '#b45309',
+  },
+  
+  // Default fallback
+  default: {
+    accent: '#6366f1',
+    accentRgb: '99, 102, 241',
+    accentHover: '#4f46e5',
+    accentMuted: '#e0e7ff',
+    accentLight: '#c7d2fe',
+    accentDark: '#4338ca',
+  },
+} as const;
+
+// =============================================================================
+// INDUSTRY OVERLAY SYSTEM
+// =============================================================================
+// Vertical-specific color tints for industry customization
+
+export type IndustryType = 'retail' | 'finance' | 'healthcare' | 'technology' | 'default';
+
+export const industryTints = {
+  retail: {
+    tint: '#f97316',       // Orange
+    tintRgb: '249, 115, 22',
+    tintLight: '#ffedd5',
+  },
+  finance: {
+    tint: '#0ea5e9',       // Sky blue
+    tintRgb: '14, 165, 233',
+    tintLight: '#e0f2fe',
+  },
+  healthcare: {
+    tint: '#14b8a6',       // Teal
+    tintRgb: '20, 184, 166',
+    tintLight: '#ccfbf1',
+  },
+  technology: {
+    tint: '#8b5cf6',       // Violet
+    tintRgb: '139, 92, 246',
+    tintLight: '#ede9fe',
+  },
+  default: {
+    tint: '#6366f1',       // Indigo
+    tintRgb: '99, 102, 241',
+    tintLight: '#e0e7ff',
+  },
+} as const;
+
+// =============================================================================
+// CRISIS/ALERT THEMING
+// =============================================================================
+// Dynamic colors based on data thresholds (crisis mode)
+
+export const crisisColors = {
+  // Normal/healthy state
+  healthy: {
+    primary: '#10b981',    // Teal/emerald
+    background: 'rgba(16, 185, 129, 0.1)',
+    border: 'rgba(16, 185, 129, 0.3)',
+    glow: 'rgba(16, 185, 129, 0.25)',
+  },
+  
+  // Warning state
+  warning: {
+    primary: '#f59e0b',    // Amber
+    background: 'rgba(245, 158, 11, 0.1)',
+    border: 'rgba(245, 158, 11, 0.3)',
+    glow: 'rgba(245, 158, 11, 0.25)',
+  },
+  
+  // Crisis/critical state
+  crisis: {
+    primary: '#f43f5e',    // Rose
+    background: 'rgba(244, 63, 94, 0.1)',
+    border: 'rgba(244, 63, 94, 0.3)',
+    glow: 'rgba(244, 63, 94, 0.25)',
+  },
+} as const;
+
+/**
+ * Get theme colors based on crisis threshold
+ * @param value Current metric value
+ * @param warningThreshold Threshold for warning state
+ * @param crisisThreshold Threshold for crisis state
+ * @param invertThresholds If true, lower values trigger alerts (e.g., conversion rate)
+ */
+export function getCrisisTheme(
+  value: number,
+  warningThreshold: number,
+  crisisThreshold: number,
+  invertThresholds = false
+) {
+  if (invertThresholds) {
+    if (value <= crisisThreshold) return crisisColors.crisis;
+    if (value <= warningThreshold) return crisisColors.warning;
+    return crisisColors.healthy;
+  } else {
+    if (value >= crisisThreshold) return crisisColors.crisis;
+    if (value >= warningThreshold) return crisisColors.warning;
+    return crisisColors.healthy;
+  }
+}
 
 // =============================================================================
 // SPACING (4px grid system)

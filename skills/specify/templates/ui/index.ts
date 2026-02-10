@@ -67,3 +67,9 @@ export * from './charts';
 
 // UX components
 export * from './components';
+
+// Layout templates
+export * from './layouts';
+
+// Page templates
+export * from './pages';

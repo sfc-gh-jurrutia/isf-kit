@@ -97,6 +97,61 @@ data: {json_payload}
 ```
 Note: Double newline required after data line.
 
+## Frontend Implementation
+
+**Use UI Templates from `templates/ui/`** - See `templates/ui/README.md` for full catalog.
+
+### Page Templates (Start Here)
+
+Choose based on frontend pattern from plan.md:
+
+| Frontend Pattern | Template | Description |
+|-----------------|----------|-------------|
+| Executive Dashboard | `ExecutiveDashboard` | KPIs + trend charts + insights |
+| Conversational BI | `ChatAnalytics` | AI chat with live analytics |
+| Data Exploration | `DataExplorer` | SQL query with auto-visualization |
+
+```tsx
+// Copy template, then customize for your domain
+import { ExecutiveDashboard } from '../templates/ui/pages';
+
+<ExecutiveDashboard
+  title="Marketing Analytics"
+  kpiData={yourDomainKPIs}
+  trendData={yourMetricTrends}
+  onRefresh={fetchFromBackend}
+/>
+```
+
+### Layout Templates (For Custom Pages)
+
+| Layout | Use Case |
+|--------|----------|
+| `DashboardShell` | App shell with sidebar navigation |
+| `KPIGrid` | Responsive grid for KPI cards |
+| `ChartGrid` | Multi-chart layouts (equal, featured, sidebar) |
+| `SplitView` | Side-by-side panels for chat + analytics |
+
+### Chart Components
+
+All charts from `templates/ui/charts/`:
+- `KPICard` - Metric with trend indicator
+- `LineChart` - Time series, trends
+- `BarChart` - Comparisons, rankings
+- `PieChart` - Distributions, proportions
+- `AreaChart` - Cumulative metrics
+- `HorizontalBarChart` - Long labels, rankings
+
+### Customization Checklist
+
+When adapting templates:
+- [ ] Replace sample data with API calls to your backend
+- [ ] Update KPI definitions for your domain
+- [ ] Customize suggested questions (ChatAnalytics)
+- [ ] Wire up Cortex Agent/Analyst endpoints
+- [ ] Update example queries (DataExplorer)
+- [ ] Add your branding to DashboardShell
+
 ## Implementation Checkpoints
 
 | After Phase | Verify |

@@ -133,6 +133,27 @@ cortex_features:
 |-----------|---------|------------|
 | {component} | {purpose} | [US#] |
 
+### Frontend Pattern
+
+> **Template Reference**: See `templates/ui/README.md` for full component catalog
+
+**Selected Pattern**: {Executive Dashboard / Conversational BI / Data Exploration / Custom}
+
+| Attribute | Selection |
+|-----------|-----------|
+| **Page Template** | {ExecutiveDashboard / ChatAnalytics / DataExplorer / Custom} |
+| **Layout** | {DashboardShell / SplitView / Custom} |
+| **Primary Interaction** | {View metrics / Chat with data / Explore queries} |
+| **Key Charts** | {LineChart, BarChart, KPICard, PieChart, etc.} |
+
+**Rationale**: {Why this pattern fits the demo audience and use case}
+
+**Customizations Needed**:
+- [ ] KPI definitions: {list domain-specific KPIs}
+- [ ] Suggested questions: {list AI chat prompts if using ChatAnalytics}
+- [ ] Example queries: {list SQL examples if using DataExplorer}
+- [ ] Branding: {logo, colors if customizing}
+
 ### Backend Endpoints
 
 | Method | Endpoint | Handler | User Story |
