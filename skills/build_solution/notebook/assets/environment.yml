@@ -1,0 +1,17 @@
+# Snowflake Notebook Environment Template
+# NOTE: Use .yml extension (some runtimes require this)
+
+name: notebook_environment
+channels:
+  - snowflake
+dependencies:
+  - python=3.10.*
+  - snowflake-ml-python
+  - pandas
+  - numpy
+  - matplotlib
+  - scikit-learn
+  # GPU/PyTorch (for Container Runtime):
+  # - pytorch=*
+  # - torchvision=*
+

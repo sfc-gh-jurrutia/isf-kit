@@ -51,7 +51,13 @@ Step 7: Deploy → Load 005_deploy/SKILL.md
 ```
 
 **Utility skills** (load on demand, not part of linear flow):
-- `semantic-model/SKILL.md` — standalone semantic model generation
+- `semantic-model/SKILL.md` — auto-generate semantic model YAML from table schema
+- `cortex-agent/SKILL.md` — build multi-tool Cortex Agents (Analyst + Search + custom)
+- `cortex-analyst/SKILL.md` — semantic model/view authoring, verified queries, deployment
+- `cortex-search/SKILL.md` — RAG pipelines, document parsing, search service creation
+- `react-app/SKILL.md` — React+FastAPI scaffold, component library, production patterns
+- `notebook/SKILL.md` — Snowflake SPCS notebooks with GPU support, distributed training
+- `deployment/SKILL.md` — three-script model templates, DDL patterns, component deployment
 
 ## Workflow
 
@@ -123,6 +129,8 @@ Deploys to Snowpark Container Services.
 
 ## Sub-Skills
 
+### Pipeline (loaded in sequence)
+
 | Phase | Sub-Skill | When to Load |
 |-------|-----------|--------------|
 | Plan + Tasks | `001_plan/SKILL.md` | After spec validation |
@@ -130,7 +138,18 @@ Deploys to Snowpark Container Services.
 | Generate | `003_generate/SKILL.md` | After quality gate passes |
 | Implement | `004_implement/SKILL.md` | After data loaded |
 | Deploy | `005_deploy/SKILL.md` | After implementation |
-| Semantic Model | `semantic-model/SKILL.md` | On demand, standalone |
+
+### Utility (loaded on demand during implementation)
+
+| Capability | Sub-Skill | When to Load |
+|------------|-----------|--------------|
+| Semantic Model | `semantic-model/SKILL.md` | Auto-generate YAML from table schema |
+| Cortex Agent | `cortex-agent/SKILL.md` | Building multi-tool agents (Analyst + Search + UDFs) |
+| Cortex Analyst | `cortex-analyst/SKILL.md` | Authoring semantic models/views, verified queries |
+| Cortex Search | `cortex-search/SKILL.md` | RAG pipelines, document parsing, search services |
+| React App | `react-app/SKILL.md` | React+FastAPI scaffold, components, production rules |
+| Notebook | `notebook/SKILL.md` | ML notebooks with GPU/distributed training |
+| Deployment | `deployment/SKILL.md` | Script templates (deploy.sh/run.sh/clean.sh), DDL |
 
 ## Stopping Points
 

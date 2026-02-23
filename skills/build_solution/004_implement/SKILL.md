@@ -64,6 +64,19 @@ The `react-app` skill provides:
 - Backend service templates (SnowflakeService, CortexAgentService)
 - 50+ production rules (a11y, performance, Snowflake-specific patterns)
 
+### Step 3.5: Cortex Feature Implementation
+
+Load the appropriate Cortex skill based on what `spec.md` requires:
+
+| Spec Requires | Load Skill | Provides |
+|---------------|------------|----------|
+| Cortex Agent | `cortex-agent/SKILL.md` | Agent DDL, tool_resources, event parsing, grants |
+| Cortex Analyst | `cortex-analyst/SKILL.md` | Semantic model/view authoring, verified queries, deployment |
+| Cortex Search | `cortex-search/SKILL.md` | Search service DDL, PDF parsing UDF, RAG pipeline |
+| ML Notebook | `notebook/SKILL.md` | Cell naming, GPU compute pools, environment setup |
+
+Most solutions use 2-3 of these together. Load each as needed during the relevant implementation phase.
+
 ### Step 4: Generate Real Code
 
 **Rules:**
@@ -71,6 +84,7 @@ The `react-app` skill provides:
 - Working implementations only
 - Follow architecture from `plan.md`
 - Use patterns from constitution
+- **Load** `deployment/SKILL.md` for script templates (deploy.sh, run.sh, clean.sh) and DDL patterns
 - Copy SQL templates from `templates/sql/schema_template.sql` into `sql/01_setup.sql` — replace `<PROJECT_DATABASE>` and `<DATA_MART_NAME>` with project values
 
 ### Step 5: Apply UI Strategy from Plan

@@ -1,0 +1,41 @@
+-- Cortex Search Service Template
+-- Replace DB, SCHEMA, and table names as needed
+
+-- 1. Create stage for documents
+CREATE OR REPLACE STAGE DB.SCHEMA.DOCS
+  ENCRYPTION = (TYPE = SNOWFLAKE_SSE)
+  DIRECTORY = (ENABLE = TRUE);
+
+-- 2. Create chunks table
+CREATE TABLE IF NOT EXISTS DB.SCHEMA.CHUNKS (
+  CHUNK_ID NUMBER AUTOINCREMENT PRIMARY KEY,
+  relative_path VARCHAR,
+  file_url VARCHAR,
+  chunk VARCHAR,
+  language VARCHAR DEFAULT 'English'
+);
+
+ALTER TABLE DB.SCHEMA.CHUNKS SET CHANGE_TRACKING = TRUE;
+
+-- 3. Create search service
+CREATE OR REPLACE CORTEX SEARCH SERVICE DB.SCHEMA.DOC_SEARCH
+ON chunk
+ATTRIBUTES relative_path, file_url, language
+WAREHOUSE = SEARCH_WH
+TARGET_LAG = '1 hour'
+EMBEDDING_MODEL = 'snowflake-arctic-embed-m-v1.5'
+AS (
+  SELECT 
+    CHUNK_ID,
+    chunk,
+    relative_path,
+    file_url,
+    language
+  FROM DB.SCHEMA.CHUNKS
+);
+
+-- 4. Grant access
+GRANT USAGE ON DATABASE DB TO ROLE SEARCH_USER;
+GRANT USAGE ON SCHEMA DB.SCHEMA TO ROLE SEARCH_USER;
+GRANT USAGE ON CORTEX SEARCH SERVICE DB.SCHEMA.DOC_SEARCH TO ROLE SEARCH_USER;
+
