@@ -1,0 +1,176 @@
+# Cortex Feature Specification Template
+# Generate one of these for each Cortex-powered feature in the demo.
+# This template is used during Step 2 (Generate Specification).
+
+# ─────────────────────────────────────────────────────────────────
+# AGENT SPECIFICATION
+# ─────────────────────────────────────────────────────────────────
+agent:
+  name: "{AGENT_NAME}"
+  description: |
+    {Clear description of what this agent does and its role in the demo}
+  model: "snowflake-llama-3.3-70b"    # or claude-3-5-sonnet, etc.
+  database: "{DATABASE}"
+  schema: "{SCHEMA}"
+
+  tools:
+    - name: "{tool_name_1}"
+      type: "cortex_analyst_text_to_sql"
+      semantic_model: "{SEMANTIC_MODEL_NAME}"
+      description: |
+        {When the agent should use this tool}
+
+    - name: "{tool_name_2}"
+      type: "cortex_search"
+      search_service: "{SEARCH_SERVICE_NAME}"
+      description: |
+        {When the agent should use this tool}
+
+    - name: "{tool_name_3}"
+      type: "custom"
+      udf: "{DB}.{SCHEMA}.{UDF_NAME}"
+      description: |
+        {When the agent should use this tool}
+
+  execution_environment:
+    runtime: "python"
+    packages:
+      - "snowflake-snowpark-python"
+      - "pandas"
+    functions:
+      - "{DB}.{SCHEMA}.{UDF_NAME}"
+
+  system_prompt: |
+    You are a {role description} assistant.
+    {behavioral instructions}
+    {response format guidelines}
+
+# ─────────────────────────────────────────────────────────────────
+# SEMANTIC MODEL SPECIFICATION
+# ─────────────────────────────────────────────────────────────────
+semantic_model:
+  name: "{SEMANTIC_MODEL_NAME}"
+  description: |
+    {What data this model exposes and for whom}
+
+  tables:
+    - name: "{TABLE_1}"
+      base_table:
+        database: "{DATABASE}"
+        schema: "{SCHEMA}"
+        table: "{TABLE_1}"
+      primary_key:
+        columns:
+          - "{PK_COLUMN}"
+      description: |
+        {Table purpose and key relationships}
+      columns:
+        - name: "{COLUMN_NAME}"
+          data_type: "NUMBER(38,2)"
+          description: |
+            {Specific description — include units, ranges, business meaning}
+          synonyms:
+            - "{alternate name}"
+      filters:
+        - name: "{filter_name}"
+          description: |
+            {When to apply this filter}
+          expression: "{SQL boolean expression}"
+      metrics:
+        - name: "{metric_name}"
+          description: |
+            {What this metric measures}
+          expression: "{SQL aggregate expression}"
+          default_aggregation: "sum"
+
+  # CRITICAL: verified_at must be Unix timestamp (int64), NOT ISO date string
+  verified_queries:
+    - name: "{query_name}"
+      question: "{natural language question}"
+      verified_at: 1706140800             # Unix epoch seconds
+      verified_by: "{author}"
+      sql: |
+        SELECT ...
+        FROM ...
+
+# ─────────────────────────────────────────────────────────────────
+# GOLDEN QUERIES (Validation)
+# ─────────────────────────────────────────────────────────────────
+golden_queries:
+  - name: "{descriptive name}"
+    question: "{natural language question a user would ask}"
+    expected_sql: |
+      SELECT ...
+      FROM ...
+    expected_result:
+      shape: "{N rows, M columns}"
+      range: "{expected value range or specific value}"
+      validation: "{how to confirm correctness}"
+
+  - name: "{descriptive name 2}"
+    question: "{another question}"
+    expected_sql: |
+      SELECT ...
+    expected_result:
+      shape: "{N rows, M columns}"
+      range: "{expected value range}"
+      validation: "{validation method}"
+
+# ─────────────────────────────────────────────────────────────────
+# CORTEX SEARCH SPECIFICATION
+# ─────────────────────────────────────────────────────────────────
+search:
+  service_name: "{SEARCH_SERVICE_NAME}"
+  warehouse: "{WAREHOUSE}"
+  target_lag: "1 hour"
+  description: |
+    {What content this search service indexes}
+
+  source:
+    table: "{DATABASE}.{SCHEMA}.{TABLE}"
+    id_column: "{ID_COLUMN}"              # MUST be in SELECT
+    text_column: "{TEXT_COLUMN}"           # Column to search
+    attributes:                            # Filterable metadata
+      - "{ATTR_1}"
+      - "{ATTR_2}"
+
+  chunking:
+    strategy: "recursive_character"        # or "paragraph", "sentence"
+    target_size: 1000                      # tokens
+    overlap: 200                           # tokens
+    format: "markdown"                     # or "plain_text"
+
+# ─────────────────────────────────────────────────────────────────
+# LLM FUNCTIONS SPECIFICATION
+# ─────────────────────────────────────────────────────────────────
+llm_functions:
+  - name: "{function_purpose}"
+    function: "SNOWFLAKE.CORTEX.COMPLETE"
+    model: "snowflake-llama-3.3-70b"
+    use_case: |
+      {When and where this function is called}
+    prompt_template: |
+      {The prompt template with {placeholders}}
+    output_format: "text"                  # or "json"
+
+  - name: "{function_purpose_2}"
+    function: "SNOWFLAKE.CORTEX.SENTIMENT"
+    use_case: |
+      {When and where this is used}
+    input_column: "{TEXT_COLUMN}"
+    output_range: "-1.0 to 1.0"
+
+# ─────────────────────────────────────────────────────────────────
+# SUGGESTED PROMPTS (for demo UX)
+# ─────────────────────────────────────────────────────────────────
+suggested_prompts:
+  initial:
+    - "Show me an overview of {domain}"
+    - "What are the top {entities} by {metric}?"
+    - "Are there any {risk/anomaly} patterns?"
+  follow_up:
+    - "Drill into {specific entity}"
+    - "Compare {entity A} vs {entity B}"
+    - "What changed in the last {time period}?"
+  hidden_discovery:
+    - "{Question that leads to the planted insight}"
