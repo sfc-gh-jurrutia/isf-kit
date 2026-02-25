@@ -1,0 +1,25 @@
+:root {
+  /* Primaries */
+  --snowflake-blue: #29B5E8;
+  --mid-blue: #11567F;
+  --star-blue: #75CDD7;
+
+  /* Accents */
+  --valencia-orange: #FF9F36;
+  --purple-moon: #7254A3;
+  --firstlight: #D45B90;
+
+  /* Neutrals */
+  --midnight: #000000;
+  --medium-gray: #5B5B5B;
+  --white: #FFFFFF;
+
+  /* Semantic (accessibility-safe pairings) */
+  --color-before: var(--valencia-orange);
+  --color-after: var(--snowflake-blue);
+  --color-positive: #28a745;
+  --color-negative: #2563eb;
+
+  /* Background */
+  --bg-dark: #121212;
+}

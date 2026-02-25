@@ -1,0 +1,153 @@
+version: "1.0"
+type: industry
+extends: _core
+industry: aerospace
+isf_code: MFG
+description: "Aerospace & Aviation — airlines, defense, aircraft manufacturing"
+
+entities:
+  CUSTOMER:
+    extends: _core.CUSTOMER
+    additional_columns:
+      FREQUENT_FLYER_ID:
+        type: VARCHAR(20)
+        description: "Loyalty program identifier"
+        generation: sequential_id
+      TIER_STATUS:
+        type: VARCHAR(20)
+        description: "Loyalty tier"
+        generation:
+          type: weighted_choice
+          choices: [Bronze, Silver, Gold, Platinum]
+          weights: [0.60, 0.25, 0.10, 0.05]
+      LIFETIME_MILES:
+        type: NUMBER(12,0)
+        description: "Total miles earned lifetime"
+
+  BOOKING:
+    description: "Flight reservation/booking record"
+    schema: ATOMIC
+    key_columns: [BOOKING_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+      - entity: FLIGHT_SEGMENT
+        type: one_to_many
+        fk: BOOKING_ID
+    columns:
+      BOOKING_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      PNR:
+        type: VARCHAR(6)
+        description: "Passenger Name Record (confirmation code)"
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+      BOOKING_DATE:
+        type: TIMESTAMP_NTZ
+        description: "When booking was made"
+        generation: random_date
+      TOTAL_FARE:
+        type: NUMBER(10,2)
+        description: "Total booking cost"
+        generation:
+          type: lognormal
+          mean: 350
+          sigma: 1.0
+          min: 50
+          max: 15000
+      BOOKING_STATUS:
+        type: VARCHAR(20)
+        description: "Confirmed, Cancelled, Completed"
+        generation:
+          type: weighted_choice
+          choices: [Confirmed, Cancelled, Completed]
+          weights: [0.20, 0.10, 0.70]
+      BOOKING_CHANNEL:
+        type: VARCHAR(30)
+        description: "Website, App, Agent, Partner"
+
+  FLIGHT_SEGMENT:
+    description: "Individual flight leg within an itinerary"
+    schema: ATOMIC
+    key_columns: [SEGMENT_ID]
+    relationships:
+      - entity: BOOKING
+        type: many_to_one
+        fk: BOOKING_ID
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+    columns:
+      SEGMENT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      BOOKING_ID:
+        type: VARCHAR(36)
+        description: "FK to BOOKING"
+        constraint: FOREIGN KEY
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+      FLIGHT_NUMBER:
+        type: VARCHAR(10)
+        description: "Operating flight number (e.g., AA1234)"
+      DEPARTURE_AIRPORT:
+        type: VARCHAR(3)
+        description: "IATA departure airport code"
+      ARRIVAL_AIRPORT:
+        type: VARCHAR(3)
+        description: "IATA arrival airport code"
+      DEPARTURE_TIME:
+        type: TIMESTAMP_NTZ
+        description: "Scheduled departure"
+      ARRIVAL_TIME:
+        type: TIMESTAMP_NTZ
+        description: "Scheduled arrival"
+      CABIN_CLASS:
+        type: VARCHAR(20)
+        description: "Economy, Premium Economy, Business, First"
+        generation:
+          type: weighted_choice
+          choices: [Economy, Premium Economy, Business, First]
+          weights: [0.70, 0.15, 0.12, 0.03]
+      STATUS:
+        type: VARCHAR(20)
+        description: "Scheduled, Departed, Arrived, Cancelled, Delayed"
+
+  AIRCRAFT:
+    description: "Aircraft in fleet"
+    schema: ATOMIC
+    key_columns: [AIRCRAFT_ID]
+    columns:
+      AIRCRAFT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      TAIL_NUMBER:
+        type: VARCHAR(10)
+        description: "Aircraft registration"
+      AIRCRAFT_TYPE:
+        type: VARCHAR(50)
+        description: "Boeing 737-800, Airbus A320neo, etc."
+      SEAT_CAPACITY:
+        type: NUMBER(4,0)
+        description: "Total seat count"
+      RANGE_NM:
+        type: NUMBER(6,0)
+        description: "Maximum range in nautical miles"
+      AGE_YEARS:
+        type: NUMBER(4,1)
+        description: "Aircraft age"
+      STATUS:
+        type: VARCHAR(20)
+        description: "Active, Maintenance, Retired"

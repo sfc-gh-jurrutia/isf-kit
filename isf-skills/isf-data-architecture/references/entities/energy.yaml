@@ -1,0 +1,149 @@
+version: "1.0"
+type: industry
+extends: _core
+industry: energy
+isf_code: MFG
+description: "Energy & Utilities — power, oil & gas, water, renewables"
+
+entities:
+  ASSET:
+    description: "Physical energy infrastructure asset"
+    schema: ATOMIC
+    key_columns: [ASSET_ID]
+    columns:
+      ASSET_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      ASSET_CODE:
+        type: VARCHAR(50)
+        description: "Asset tag identifier"
+        generation: sequential_id
+      ASSET_NAME:
+        type: VARCHAR(200)
+        description: "Asset display name"
+      ASSET_TYPE:
+        type: VARCHAR(100)
+        description: "Transformer, Turbine, Pipeline, Meter, Solar Panel, etc."
+      LOCATION_LAT:
+        type: NUMBER(10,7)
+        description: "Latitude"
+      LOCATION_LON:
+        type: NUMBER(10,7)
+        description: "Longitude"
+      INSTALL_DATE:
+        type: DATE
+        description: "Installation date"
+      EXPECTED_LIFE_YEARS:
+        type: NUMBER(4,0)
+        description: "Expected asset lifespan"
+      STATUS:
+        type: VARCHAR(20)
+        description: "Active, Maintenance, Decommissioned"
+
+  ASSET_READING:
+    description: "Telemetry reading from energy asset"
+    schema: ATOMIC
+    key_columns: [READING_ID]
+    relationships:
+      - entity: ASSET
+        type: many_to_one
+        fk: ASSET_ID
+    columns:
+      READING_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      ASSET_ID:
+        type: VARCHAR(36)
+        description: "FK to ASSET"
+        constraint: FOREIGN KEY
+      READING_TYPE:
+        type: VARCHAR(50)
+        description: "Voltage, Current, Power, Temperature, Pressure, Flow"
+      READING_VALUE:
+        type: NUMBER(12,4)
+        description: "Numeric measurement value"
+      READING_UNIT:
+        type: VARCHAR(20)
+        description: "Unit of measure"
+      READING_TIMESTAMP:
+        type: TIMESTAMP_NTZ
+        description: "When reading was captured"
+        generation: random_date
+      IS_ANOMALY:
+        type: BOOLEAN
+        description: "ML-flagged anomalous reading"
+
+  OUTAGE:
+    description: "Service outage or disruption event"
+    schema: ATOMIC
+    key_columns: [OUTAGE_ID]
+    relationships:
+      - entity: ASSET
+        type: many_to_one
+        fk: ASSET_ID
+    columns:
+      OUTAGE_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      ASSET_ID:
+        type: VARCHAR(36)
+        description: "FK to ASSET (if asset-related)"
+        constraint: FOREIGN KEY
+      OUTAGE_TYPE:
+        type: VARCHAR(50)
+        description: "Planned, Unplanned, Emergency"
+      CAUSE:
+        type: VARCHAR(200)
+        description: "Weather, Equipment Failure, Overload, etc."
+      AFFECTED_CUSTOMERS:
+        type: NUMBER(10,0)
+        description: "Number of customers impacted"
+      START_TIME:
+        type: TIMESTAMP_NTZ
+        description: "Outage start"
+      RESTORATION_TIME:
+        type: TIMESTAMP_NTZ
+        description: "Service restored"
+      DURATION_MINUTES:
+        type: NUMBER(8,0)
+        description: "Total outage duration"
+
+  METER:
+    description: "Customer metering device"
+    schema: ATOMIC
+    key_columns: [METER_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+    columns:
+      METER_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+      METER_TYPE:
+        type: VARCHAR(30)
+        description: "Electric, Gas, Water, Smart"
+      INSTALL_DATE:
+        type: DATE
+        description: "Meter installation date"
+      LAST_READ_DATE:
+        type: TIMESTAMP_NTZ
+        description: "Most recent reading"
+      CONSUMPTION_KWH:
+        type: NUMBER(12,2)
+        description: "Cumulative consumption"
+      PEAK_DEMAND_KW:
+        type: NUMBER(10,2)
+        description: "Peak demand recorded"

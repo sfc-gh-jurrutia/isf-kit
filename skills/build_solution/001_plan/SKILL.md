@@ -89,6 +89,8 @@ Does solution need real-time responses?
 
 **⚠️ MANDATORY STOPPING POINT**: Present analysis and wait for confirmation. In Express mode, if architecture is straightforward (Zone B only, single pattern), auto-confirm and proceed.
 
+**Log**: Record `architecture_choice` — append to `specs/{solution}/decision-log.jsonl`: step "Plan, Step 5: Architecture Analysis", value_selected (Yes continue/Modify/Cancel), alternatives, rationale.
+
 ```
 ## Architecture Analysis
 
@@ -153,6 +155,8 @@ Apply visualization matrix to generate:
 #### 5.5.3 Present UI Recommendations
 
 **⚠️ MANDATORY STOPPING POINT**: Present recommendations and wait for confirmation.
+
+**Log**: Record `architecture_choice` — append to `specs/{solution}/decision-log.jsonl`: step "Plan, Step 5.5: UI Strategy", value_selected (Yes generate plan/Modify charts/Modify layout/Change template/Cancel), alternatives, rationale.
 
 ```
 ## UI Strategy Recommendation
@@ -265,6 +269,8 @@ From the plan just generated, extract:
 #### 7.3 Present Task Summary
 
 **⚠️ MANDATORY CHECKPOINT**: Present summary before generating. Auto-proceed in Full Auto mode or Express mode, pause otherwise.
+
+**Log**: Record `approval` — append to `specs/{solution}/decision-log.jsonl`: step "Plan, Step 7.3: Task Summary", value_selected (Yes/Modify/Cancel), alternatives, rationale.
 
 ```
 ## Task Generation Summary

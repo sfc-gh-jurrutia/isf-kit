@@ -128,6 +128,8 @@ GRANT USAGE ON COMPUTE POOL {pool_name} TO ROLE {role};
 
 **⚠️ MANDATORY STOPPING POINT**: Present deployment plan to user.
 
+**Log**: Record `approval` — append to `specs/{solution}/decision-log.jsonl`: step "Deploy, Step 2: Deployment Plan", value_selected (Yes/No), alternatives ["Yes", "No"], rationale.
+
 ```
 SPCS Deployment Plan:
 

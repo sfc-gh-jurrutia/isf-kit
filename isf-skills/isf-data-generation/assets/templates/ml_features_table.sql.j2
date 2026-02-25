@@ -1,0 +1,133 @@
+{# ML Features Table Template #}
+{# Usage: Render with industry config to generate ML features aggregation SQL #}
+
+-- {{ experience_name }} ML Features Table
+-- Generated from industry_data_generator template
+-- Aggregates activity and transaction data into customer-level features
+
+USE DATABASE {{ database }};
+USE SCHEMA {{ ml_features.schema }};
+
+-- Drop and recreate for clean refresh
+DROP TABLE IF EXISTS {{ ml_features.table }};
+
+CREATE TABLE {{ ml_features.table }} AS
+WITH activity_aggs AS (
+    SELECT 
+        CUSTOMER_ID,
+        COUNT(*) AS TOTAL_ACTIVITIES,
+        COUNT(DISTINCT SESSION_ID) AS TOTAL_SESSIONS,
+        COUNT(DISTINCT DATE_TRUNC('day', EVENT_TIMESTAMP)) AS ACTIVE_DAYS,
+        MIN(EVENT_TIMESTAMP) AS FIRST_ACTIVITY,
+        MAX(EVENT_TIMESTAMP) AS LAST_ACTIVITY,
+        DATEDIFF('day', MIN(EVENT_TIMESTAMP), MAX(EVENT_TIMESTAMP)) AS ACTIVITY_SPAN_DAYS,
+        DATEDIFF('day', MAX(EVENT_TIMESTAMP), CURRENT_TIMESTAMP()) AS DAYS_SINCE_LAST_ACTIVITY,
+        -- Activity type breakdown
+{% for activity_type in activity.types %}
+        SUM(CASE WHEN ACTIVITY_TYPE = '{{ activity_type }}' THEN 1 ELSE 0 END) AS {{ activity_type | upper }}_COUNT{% if not loop.last %},{% endif %}
+
+{% endfor %}
+    FROM {{ database }}.{{ activity.schema }}.{{ activity.table }}
+    GROUP BY CUSTOMER_ID
+),
+
+transaction_aggs AS (
+    SELECT 
+        CUSTOMER_ID,
+        COUNT(*) AS TOTAL_TRANSACTIONS,
+        SUM(AMOUNT) AS TOTAL_SPEND,
+        AVG(AMOUNT) AS AVG_TRANSACTION_AMOUNT,
+        MIN(AMOUNT) AS MIN_TRANSACTION_AMOUNT,
+        MAX(AMOUNT) AS MAX_TRANSACTION_AMOUNT,
+        STDDEV(AMOUNT) AS STDDEV_TRANSACTION_AMOUNT,
+        MIN(TRANSACTION_DATE) AS FIRST_TRANSACTION,
+        MAX(TRANSACTION_DATE) AS LAST_TRANSACTION,
+        DATEDIFF('day', MIN(TRANSACTION_DATE), MAX(TRANSACTION_DATE)) AS TRANSACTION_SPAN_DAYS,
+        DATEDIFF('day', MAX(TRANSACTION_DATE), CURRENT_TIMESTAMP()) AS DAYS_SINCE_LAST_TRANSACTION,
+        COUNT(DISTINCT PRODUCT_ID) AS UNIQUE_PRODUCTS_PURCHASED,
+        -- Transaction type breakdown
+{% for txn_type in transactions.types %}
+        SUM(CASE WHEN TRANSACTION_TYPE = '{{ txn_type }}' THEN 1 ELSE 0 END) AS {{ txn_type | upper }}_COUNT,
+        SUM(CASE WHEN TRANSACTION_TYPE = '{{ txn_type }}' THEN AMOUNT ELSE 0 END) AS {{ txn_type | upper }}_AMOUNT{% if not loop.last %},{% endif %}
+
+{% endfor %}
+    FROM {{ database }}.{{ transactions.schema }}.{{ transactions.table }}
+    WHERE TRANSACTION_STATUS = 'COMPLETED'
+    GROUP BY CUSTOMER_ID
+)
+
+SELECT 
+    c.CUSTOMER_ID,
+    c.CUSTOMER_SEGMENT,
+    c.COUNTRY_CODE,
+    c.LIFETIME_VALUE AS ORIGINAL_LTV,
+    
+    -- Activity features
+    COALESCE(a.TOTAL_ACTIVITIES, 0) AS TOTAL_ACTIVITIES,
+    COALESCE(a.TOTAL_SESSIONS, 0) AS TOTAL_SESSIONS,
+    COALESCE(a.ACTIVE_DAYS, 0) AS ACTIVE_DAYS,
+    a.FIRST_ACTIVITY,
+    a.LAST_ACTIVITY,
+    COALESCE(a.ACTIVITY_SPAN_DAYS, 0) AS ACTIVITY_SPAN_DAYS,
+    COALESCE(a.DAYS_SINCE_LAST_ACTIVITY, 999) AS DAYS_SINCE_LAST_ACTIVITY,
+    
+    -- Activity type counts
+{% for activity_type in activity.types %}
+    COALESCE(a.{{ activity_type | upper }}_COUNT, 0) AS {{ activity_type | upper }}_COUNT{% if not loop.last %},{% endif %}
+
+{% endfor %},
+    
+    -- Transaction features
+    COALESCE(t.TOTAL_TRANSACTIONS, 0) AS TOTAL_TRANSACTIONS,
+    COALESCE(t.TOTAL_SPEND, 0) AS TOTAL_SPEND,
+    COALESCE(t.AVG_TRANSACTION_AMOUNT, 0) AS AVG_TRANSACTION_AMOUNT,
+    t.MIN_TRANSACTION_AMOUNT,
+    t.MAX_TRANSACTION_AMOUNT,
+    t.STDDEV_TRANSACTION_AMOUNT,
+    t.FIRST_TRANSACTION,
+    t.LAST_TRANSACTION,
+    COALESCE(t.TRANSACTION_SPAN_DAYS, 0) AS TRANSACTION_SPAN_DAYS,
+    COALESCE(t.DAYS_SINCE_LAST_TRANSACTION, 999) AS DAYS_SINCE_LAST_TRANSACTION,
+    COALESCE(t.UNIQUE_PRODUCTS_PURCHASED, 0) AS UNIQUE_PRODUCTS_PURCHASED,
+    
+    -- Transaction type counts and amounts
+{% for txn_type in transactions.types %}
+    COALESCE(t.{{ txn_type | upper }}_COUNT, 0) AS {{ txn_type | upper }}_COUNT,
+    COALESCE(t.{{ txn_type | upper }}_AMOUNT, 0) AS {{ txn_type | upper }}_AMOUNT{% if not loop.last %},{% endif %}
+
+{% endfor %},
+    
+    -- Derived features
+    CASE 
+        WHEN COALESCE(a.DAYS_SINCE_LAST_ACTIVITY, 999) > 30 
+             AND COALESCE(t.DAYS_SINCE_LAST_TRANSACTION, 999) > 60 
+        THEN 1 
+        ELSE 0 
+    END AS WILL_CHURN,
+    
+    CASE 
+        WHEN COALESCE(t.TOTAL_SPEND, 0) > 500 THEN 'High'
+        WHEN COALESCE(t.TOTAL_SPEND, 0) > 100 THEN 'Medium'
+        ELSE 'Low'
+    END AS VALUE_SEGMENT,
+    
+    -- Engagement score (0-100)
+    LEAST(100, 
+        COALESCE(a.TOTAL_ACTIVITIES, 0) * 0.5 + 
+        COALESCE(a.ACTIVE_DAYS, 0) * 2 + 
+        COALESCE(t.TOTAL_TRANSACTIONS, 0) * 5
+    ) AS ENGAGEMENT_SCORE,
+    
+    -- Timestamp
+    CURRENT_TIMESTAMP() AS FEATURES_CREATED_AT
+
+FROM {{ database }}.SRC_CORE_CUSTOMER.CUSTOMERS c
+LEFT JOIN activity_aggs a ON c.CUSTOMER_ID = a.CUSTOMER_ID
+LEFT JOIN transaction_aggs t ON c.CUSTOMER_ID = t.CUSTOMER_ID;
+
+-- Add comment
+COMMENT ON TABLE {{ ml_features.table }} IS 
+'{{ experience_name }} ML features for customer modeling. Generated by industry_data_generator.';
+
+-- Show record count
+SELECT COUNT(*) AS FEATURE_RECORD_COUNT FROM {{ ml_features.table }};

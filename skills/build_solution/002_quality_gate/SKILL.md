@@ -179,6 +179,8 @@ Verify each persona type gets appropriate visualizations:
 
 **⚠️ MANDATORY CHECKPOINT**: Present the combined report. Auto-proceed in Full Auto mode, pause otherwise.
 
+**Log**: Record `approval` — append to `specs/{solution}/decision-log.jsonl`: step "Quality Gate, Step 10: Gate Report", value_selected (Proceed/Fix Issues/Cancel), alternatives, rationale (include pass/fail summary and issue counts).
+
 ```markdown
 # Quality Gate Report: {solution-name}
 

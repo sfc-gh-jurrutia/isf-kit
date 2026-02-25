@@ -1,0 +1,114 @@
+version: "1.0"
+type: industry
+extends: _core
+industry: public_sector
+isf_code: PUB
+description: "Public Sector & Government — federal, state, local, education"
+
+entities:
+  CUSTOMER:
+    extends: _core.CUSTOMER
+    additional_columns:
+      CONSTITUENT_ID:
+        type: VARCHAR(20)
+        description: "Government-issued constituent identifier"
+        generation: sequential_id
+      DISTRICT:
+        type: VARCHAR(100)
+        description: "Political district or jurisdiction"
+      ELIGIBILITY_STATUS:
+        type: VARCHAR(30)
+        description: "Eligibility for services"
+
+  CASE:
+    description: "Government case or service request"
+    schema: ATOMIC
+    key_columns: [CASE_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+    columns:
+      CASE_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER (constituent)"
+        constraint: FOREIGN KEY
+      CASE_NUMBER:
+        type: VARCHAR(20)
+        description: "Human-readable case number"
+        generation: sequential_id
+      CASE_TYPE:
+        type: VARCHAR(100)
+        description: "Benefits, Permits, Complaints, FOIA, etc."
+      PRIORITY:
+        type: VARCHAR(10)
+        description: "High, Medium, Low"
+      STATUS:
+        type: VARCHAR(20)
+        description: "Open, In Progress, Pending Review, Closed"
+        generation:
+          type: weighted_choice
+          choices: [Open, In Progress, Pending Review, Closed]
+          weights: [0.20, 0.30, 0.15, 0.35]
+      ASSIGNED_TO:
+        type: VARCHAR(100)
+        description: "Case worker or department"
+      OPENED_DATE:
+        type: TIMESTAMP_NTZ
+        description: "When case was created"
+        generation: random_date
+      CLOSED_DATE:
+        type: TIMESTAMP_NTZ
+        description: "When case was resolved"
+      SLA_DUE_DATE:
+        type: DATE
+        description: "Service level deadline"
+
+  SERVICE_REQUEST:
+    description: "Citizen service request (311, permits, inspections)"
+    schema: ATOMIC
+    key_columns: [REQUEST_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+    columns:
+      REQUEST_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+      REQUEST_TYPE:
+        type: VARCHAR(100)
+        description: "Pothole, Street Light, Noise, Permit, Inspection"
+      DESCRIPTION:
+        type: VARCHAR(2000)
+        description: "Detailed request description"
+      LOCATION_LAT:
+        type: NUMBER(10,7)
+        description: "Latitude of request"
+      LOCATION_LON:
+        type: NUMBER(10,7)
+        description: "Longitude of request"
+      STATUS:
+        type: VARCHAR(20)
+        description: "Submitted, Acknowledged, In Progress, Resolved"
+      SUBMITTED_DATE:
+        type: TIMESTAMP_NTZ
+        description: "When request was submitted"
+        generation: random_date
+      RESOLVED_DATE:
+        type: TIMESTAMP_NTZ
+        description: "When request was resolved"
+      DEPARTMENT:
+        type: VARCHAR(100)
+        description: "Responsible department"

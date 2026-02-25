@@ -11,6 +11,31 @@
 | Industry | {industry} |
 | Primary Persona | {persona} |
 | Solution Purpose | {purpose} |
+| Workflow Mode | {Express / Full} |
+| Input Method | {Document Import ({format}) / Repo Analysis ({url or path}) / Conversational} |
+
+## Repo Analysis (Path C only)
+
+> Include this section when input method is Repo Analysis. Remove if not applicable.
+
+### Source Repository
+- **URL/Path**: {source}
+- **Clone Method**: {shallow clone / local path / current project}
+
+### Detected Architecture
+- **Frontend**: {React+FastAPI / Streamlit (converting to React) / None}
+- **Database Schemas**: {list of schemas found}
+- **Cortex Features**: {list of features detected with evidence}
+- **Deployment Pattern**: {SPCS / SiS / Manual / None}
+
+### Compliance Gaps
+| Standard | Status | Conversion Needed |
+|----------|--------|-------------------|
+| {standard} | {Met/Gap} | {description} |
+
+### Repo-to-Spec Mapping Decisions
+- {key decision 1: how a repo finding was mapped to spec}
+- {key decision 2: what was converted or reinterpreted}
 
 ## Intake Decisions
 
@@ -83,8 +108,8 @@
 - **Reasoning**: {justification for pattern choice}
 
 ### App Type
-- **Decision**: {Streamlit / React / Both}
-- **Reasoning**: {why this app type}
+- **Decision**: React + FastAPI
+- **Reasoning**: {why this architecture fits the use case}
 
 ### Data Architecture
 - **Tables Created**: {list of tables}

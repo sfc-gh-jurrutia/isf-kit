@@ -1,0 +1,238 @@
+version: "1.0"
+type: industry
+extends: _core
+industry: manufacturing
+isf_code: MFG
+description: "Manufacturing — discrete, process, industrial, supply chain"
+
+entities:
+  EQUIPMENT:
+    description: "Physical production equipment or machine"
+    schema: ATOMIC
+    key_columns: [EQUIPMENT_ID]
+    relationships:
+      - entity: WORK_ORDER
+        type: one_to_many
+        fk: EQUIPMENT_ID
+      - entity: SENSOR_READING
+        type: one_to_many
+        fk: EQUIPMENT_ID
+    columns:
+      EQUIPMENT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      EQUIPMENT_CODE:
+        type: VARCHAR(50)
+        description: "Asset tag or equipment code"
+        generation: sequential_id
+      EQUIPMENT_NAME:
+        type: VARCHAR(200)
+        description: "Display name"
+      EQUIPMENT_TYPE:
+        type: VARCHAR(100)
+        description: "CNC, Assembly, Packaging, Testing, etc."
+      WORK_CENTER:
+        type: VARCHAR(100)
+        description: "Work center or production line"
+      MANUFACTURER:
+        type: VARCHAR(200)
+        description: "Equipment manufacturer"
+      INSTALL_DATE:
+        type: DATE
+        description: "Date installed"
+      STATUS:
+        type: VARCHAR(20)
+        description: "Running, Idle, Maintenance, Down"
+        generation:
+          type: weighted_choice
+          choices: [Running, Idle, Maintenance, Down]
+          weights: [0.65, 0.15, 0.12, 0.08]
+
+  WORK_ORDER:
+    description: "Production or maintenance work order"
+    schema: ATOMIC
+    key_columns: [WORK_ORDER_ID]
+    relationships:
+      - entity: EQUIPMENT
+        type: many_to_one
+        fk: EQUIPMENT_ID
+      - entity: PRODUCT
+        type: many_to_one
+        fk: PRODUCT_ID
+    columns:
+      WORK_ORDER_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      WORK_ORDER_NUMBER:
+        type: VARCHAR(20)
+        description: "Human-readable WO number"
+        generation: sequential_id
+      EQUIPMENT_ID:
+        type: VARCHAR(36)
+        description: "FK to EQUIPMENT"
+        constraint: FOREIGN KEY
+      PRODUCT_ID:
+        type: VARCHAR(36)
+        description: "FK to PRODUCT being manufactured"
+        constraint: FOREIGN KEY
+      ORDER_TYPE:
+        type: VARCHAR(30)
+        description: "Production, Maintenance, Quality, Rework"
+        generation:
+          type: weighted_choice
+          choices: [Production, Maintenance, Quality, Rework]
+          weights: [0.60, 0.20, 0.12, 0.08]
+      PRIORITY:
+        type: VARCHAR(10)
+        description: "High, Medium, Low"
+      PLANNED_START:
+        type: TIMESTAMP_NTZ
+        description: "Scheduled start time"
+      ACTUAL_START:
+        type: TIMESTAMP_NTZ
+        description: "Actual start time"
+      PLANNED_QTY:
+        type: NUMBER(10,0)
+        description: "Target production quantity"
+      ACTUAL_QTY:
+        type: NUMBER(10,0)
+        description: "Actual produced quantity"
+      STATUS:
+        type: VARCHAR(20)
+        description: "Planned, In Progress, Completed, On Hold"
+
+  PRODUCTION_RUN:
+    description: "Single production batch or run"
+    schema: ATOMIC
+    key_columns: [RUN_ID]
+    relationships:
+      - entity: WORK_ORDER
+        type: many_to_one
+        fk: WORK_ORDER_ID
+      - entity: EQUIPMENT
+        type: many_to_one
+        fk: EQUIPMENT_ID
+    columns:
+      RUN_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      WORK_ORDER_ID:
+        type: VARCHAR(36)
+        description: "FK to WORK_ORDER"
+        constraint: FOREIGN KEY
+      EQUIPMENT_ID:
+        type: VARCHAR(36)
+        description: "FK to EQUIPMENT"
+        constraint: FOREIGN KEY
+      BATCH_NUMBER:
+        type: VARCHAR(20)
+        description: "Batch identifier"
+      PRODUCTION_DATE:
+        type: DATE
+        description: "Production date"
+        generation: random_date
+      YIELD_PERCENTAGE:
+        type: NUMBER(5,2)
+        description: "Good units / total units"
+        generation:
+          type: lognormal
+          mean: 92
+          sigma: 0.1
+          min: 50
+          max: 100
+      CYCLE_TIME_MINUTES:
+        type: NUMBER(8,2)
+        description: "Time to complete the run"
+      DEFECT_COUNT:
+        type: NUMBER(8,0)
+        description: "Number of defective units"
+      PRODUCTION_STATUS:
+        type: VARCHAR(20)
+        description: "Running, Completed, Aborted"
+
+  SENSOR_READING:
+    description: "IoT sensor reading from equipment"
+    schema: ATOMIC
+    key_columns: [READING_ID]
+    relationships:
+      - entity: EQUIPMENT
+        type: many_to_one
+        fk: EQUIPMENT_ID
+    columns:
+      READING_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      EQUIPMENT_ID:
+        type: VARCHAR(36)
+        description: "FK to EQUIPMENT"
+        constraint: FOREIGN KEY
+      SENSOR_TYPE:
+        type: VARCHAR(50)
+        description: "Temperature, Pressure, Vibration, Humidity, RPM"
+        generation:
+          type: weighted_choice
+          choices: [Temperature, Pressure, Vibration, Humidity, RPM]
+          weights: [0.25, 0.20, 0.20, 0.15, 0.20]
+      READING_VALUE:
+        type: NUMBER(12,4)
+        description: "Numeric sensor value"
+      READING_UNIT:
+        type: VARCHAR(20)
+        description: "Unit of measure (Celsius, PSI, mm/s, %, RPM)"
+      READING_TIMESTAMP:
+        type: TIMESTAMP_NTZ
+        description: "When reading was captured"
+        generation: random_date
+      IS_ANOMALY:
+        type: BOOLEAN
+        description: "ML-flagged anomalous reading"
+        generation:
+          type: weighted_choice
+          choices: [false, true]
+          weights: [0.95, 0.05]
+
+  QUALITY_INSPECTION:
+    description: "Quality control inspection record"
+    schema: ATOMIC
+    key_columns: [INSPECTION_ID]
+    relationships:
+      - entity: PRODUCTION_RUN
+        type: many_to_one
+        fk: RUN_ID
+    columns:
+      INSPECTION_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      RUN_ID:
+        type: VARCHAR(36)
+        description: "FK to PRODUCTION_RUN"
+        constraint: FOREIGN KEY
+      INSPECTOR:
+        type: VARCHAR(100)
+        description: "Inspector name or ID"
+      INSPECTION_DATE:
+        type: TIMESTAMP_NTZ
+        description: "When inspection occurred"
+      RESULT:
+        type: VARCHAR(20)
+        description: "Pass, Fail, Conditional"
+        generation:
+          type: weighted_choice
+          choices: [Pass, Fail, Conditional]
+          weights: [0.80, 0.12, 0.08]
+      DEFECT_TYPE:
+        type: VARCHAR(100)
+        description: "Type of defect found (if any)"
+      NOTES:
+        type: VARCHAR(1000)
+        description: "Inspector notes"

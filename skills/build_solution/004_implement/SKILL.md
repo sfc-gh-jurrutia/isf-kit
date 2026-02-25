@@ -27,6 +27,8 @@ Files must exist in `specs/{solution-name}/`:
 
 **⚠️ MANDATORY STOPPING POINT**: Ask user for mode.
 
+**Log**: Record `mode_selection` — append to `specs/{solution}/decision-log.jsonl`: step "Implement, Step 1: Implementation Mode", value_selected (Full Auto/Phase by Phase/Task by Task/Resume), alternatives, rationale.
+
 ```
 Select implementation mode:
 
@@ -59,7 +61,7 @@ Follow task order from `tasks.md`:
 
 The `react-app` skill provides:
 - Project scaffolding (Vite+React+TS + FastAPI)
-- Cortex Agent chat components and hooks
+- Cortex Agent chat components and hookshow
 - SSE streaming patterns and event contracts
 - Backend service templates (SnowflakeService, CortexAgentService)
 - 50+ production rules (a11y, performance, Snowflake-specific patterns)

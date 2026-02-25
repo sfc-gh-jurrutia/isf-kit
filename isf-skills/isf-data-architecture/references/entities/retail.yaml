@@ -1,0 +1,322 @@
+version: "1.0"
+type: industry
+extends: _core
+industry: retail
+isf_code: RET
+description: "Retail — e-commerce, brick-and-mortar, omnichannel, CPG"
+
+entities:
+  CUSTOMER:
+    extends: _core.CUSTOMER
+    additional_columns:
+      LOYALTY_TIER:
+        type: VARCHAR(20)
+        description: "Loyalty program tier"
+        generation:
+          type: weighted_choice
+          choices: [Bronze, Silver, Gold, Platinum]
+          weights: [0.50, 0.25, 0.15, 0.10]
+      LOYALTY_POINTS:
+        type: NUMBER(10,0)
+        description: "Current loyalty points balance"
+        generation:
+          type: lognormal
+          mean: 1000
+          sigma: 1.5
+          min: 0
+          max: 500000
+      PREFERRED_CHANNEL:
+        type: VARCHAR(20)
+        description: "Web, Mobile, In-Store"
+        generation:
+          type: weighted_choice
+          choices: [Web, Mobile, In-Store]
+          weights: [0.40, 0.35, 0.25]
+      LIFETIME_VALUE:
+        type: NUMBER(12,2)
+        description: "Calculated customer lifetime value"
+        generation:
+          type: lognormal
+          mean: 500
+          sigma: 1.5
+          min: 10
+          max: 100000
+
+  PRODUCT:
+    extends: _core.PRODUCT
+    additional_columns:
+      DEPARTMENT:
+        type: VARCHAR(100)
+        description: "Store department"
+        generation:
+          type: weighted_choice
+          choices: [Grocery, Electronics, Clothing, Home & Garden, Health & Beauty, Toys, Sports & Outdoors, Automotive]
+          weights: [0.25, 0.12, 0.15, 0.12, 0.12, 0.08, 0.10, 0.06]
+      BRAND:
+        type: VARCHAR(100)
+        description: "Product brand"
+        generation: faker.company
+      WEIGHT_LBS:
+        type: NUMBER(8,2)
+        description: "Product weight in pounds"
+        generation:
+          type: lognormal
+          mean: 2
+          sigma: 1.5
+          min: 0.01
+          max: 200
+      IS_PERISHABLE:
+        type: BOOLEAN
+        description: "Whether product is perishable"
+        generation:
+          type: boolean
+          weight: 0.25
+      MARGIN_PERCENT:
+        type: NUMBER(5,2)
+        description: "Gross margin percentage"
+        generation:
+          type: lognormal
+          mean: 30
+          sigma: 0.5
+          min: 5
+          max: 80
+
+  ORDER:
+    description: "Customer purchase order"
+    schema: ATOMIC
+    key_columns: [ORDER_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+      - entity: ORDER_LINE
+        type: one_to_many
+        fk: ORDER_ID
+    columns:
+      ORDER_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+        generation: customer_ref
+      ORDER_DATE:
+        type: TIMESTAMP_NTZ
+        description: "When order was placed"
+        generation:
+          type: random_date
+          days_ago_min: 0
+          days_ago_max: 365
+      ORDER_TOTAL:
+        type: NUMBER(10,2)
+        description: "Total order value after discounts"
+        generation:
+          type: lognormal
+          mean: 75
+          sigma: 1.2
+          min: 5
+          max: 5000
+      DISCOUNT_AMOUNT:
+        type: NUMBER(10,2)
+        description: "Total discount applied"
+        generation:
+          type: lognormal
+          mean: 5
+          sigma: 1.0
+          min: 0
+          max: 500
+      PROMO_CODE:
+        type: VARCHAR(50)
+        description: "Applied promotional code"
+      CHANNEL:
+        type: VARCHAR(20)
+        description: "Web, Mobile, In-Store, Phone"
+        generation:
+          type: weighted_choice
+          choices: [Web, Mobile, In-Store, Phone]
+          weights: [0.40, 0.30, 0.25, 0.05]
+      ORDER_STATUS:
+        type: VARCHAR(20)
+        description: "Pending, Confirmed, Shipped, Delivered, Returned"
+        generation:
+          type: weighted_choice
+          choices: [Pending, Confirmed, Shipped, Delivered, Returned]
+          weights: [0.05, 0.10, 0.15, 0.60, 0.10]
+      PAYMENT_METHOD:
+        type: VARCHAR(50)
+        description: "Payment method used"
+        generation:
+          type: weighted_choice
+          source: reference_data.payment_methods
+      SHIPPING_ADDRESS_ID:
+        type: VARCHAR(36)
+        description: "FK to ADDRESS"
+        constraint: FOREIGN KEY
+
+  ORDER_LINE:
+    description: "Individual line item within an order"
+    schema: ATOMIC
+    key_columns: [ORDER_LINE_ID]
+    relationships:
+      - entity: ORDER
+        type: many_to_one
+        fk: ORDER_ID
+      - entity: PRODUCT
+        type: many_to_one
+        fk: PRODUCT_ID
+    columns:
+      ORDER_LINE_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      ORDER_ID:
+        type: VARCHAR(36)
+        description: "FK to ORDER"
+        constraint: FOREIGN KEY
+      PRODUCT_ID:
+        type: VARCHAR(36)
+        description: "FK to PRODUCT"
+        constraint: FOREIGN KEY
+      QUANTITY:
+        type: NUMBER(8,0)
+        description: "Units ordered"
+        generation:
+          type: weighted_choice
+          choices: [1, 2, 3, 4, 5]
+          weights: [0.60, 0.20, 0.10, 0.05, 0.05]
+      UNIT_PRICE:
+        type: NUMBER(10,2)
+        description: "Price per unit at time of order"
+        generation:
+          type: lognormal
+          mean: 25
+          sigma: 1.0
+          min: 0.99
+          max: 2000
+      DISCOUNT_PERCENT:
+        type: NUMBER(5,2)
+        description: "Line-level discount percentage"
+        generation:
+          type: weighted_choice
+          choices: [0, 10, 15, 20, 25, 30, 50]
+          weights: [0.55, 0.12, 0.10, 0.08, 0.06, 0.05, 0.04]
+      LINE_TOTAL:
+        type: NUMBER(10,2)
+        description: "Quantity * unit price * (1 - discount)"
+
+  INVENTORY:
+    description: "Product inventory by location"
+    schema: ATOMIC
+    key_columns: [INVENTORY_ID]
+    relationships:
+      - entity: PRODUCT
+        type: many_to_one
+        fk: PRODUCT_ID
+      - entity: STORE
+        type: many_to_one
+        fk: STORE_ID
+    columns:
+      INVENTORY_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      PRODUCT_ID:
+        type: VARCHAR(36)
+        description: "FK to PRODUCT"
+        constraint: FOREIGN KEY
+      STORE_ID:
+        type: VARCHAR(36)
+        description: "FK to STORE"
+        constraint: FOREIGN KEY
+      QUANTITY_ON_HAND:
+        type: NUMBER(10,0)
+        description: "Current stock level"
+        generation:
+          type: lognormal
+          mean: 50
+          sigma: 1.0
+          min: 0
+          max: 5000
+      REORDER_POINT:
+        type: NUMBER(10,0)
+        description: "Threshold for reorder trigger"
+        generation:
+          type: uniform_int
+          min: 5
+          max: 50
+      DAYS_OF_SUPPLY:
+        type: NUMBER(5,1)
+        description: "Estimated days until stockout"
+        generation:
+          type: uniform_int
+          min: 1
+          max: 90
+      LAST_REPLENISHED:
+        type: DATE
+        description: "Last restock date"
+        generation:
+          type: random_date
+          days_ago_min: 0
+          days_ago_max: 30
+
+  STORE:
+    description: "Physical retail location"
+    schema: ATOMIC
+    key_columns: [STORE_ID]
+    columns:
+      STORE_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      STORE_NAME:
+        type: VARCHAR(200)
+        description: "Store display name"
+        generation: faker.company
+      STORE_NUMBER:
+        type: VARCHAR(10)
+        description: "Store number"
+        generation: sequential_id
+      STORE_TYPE:
+        type: VARCHAR(50)
+        description: "Flagship, Standard, Outlet, Pop-Up, Warehouse"
+        generation:
+          type: weighted_choice
+          choices: [Standard, Flagship, Outlet, Pop-Up, Warehouse]
+          weights: [0.55, 0.10, 0.15, 0.05, 0.15]
+      REGION:
+        type: VARCHAR(50)
+        description: "Geographic region"
+        generation:
+          type: weighted_choice
+          choices: [Northeast, Southeast, Midwest, Southwest, West, Pacific Northwest]
+          weights: [0.20, 0.18, 0.18, 0.15, 0.17, 0.12]
+      STATE:
+        type: VARCHAR(2)
+        description: "US state code"
+        generation: faker.state_abbr
+      SQUARE_FOOTAGE:
+        type: NUMBER(8,0)
+        description: "Store size in sq ft"
+        generation:
+          type: lognormal
+          mean: 45000
+          sigma: 0.5
+          min: 5000
+          max: 200000
+      OPENED_DATE:
+        type: DATE
+        description: "Store opening date"
+        generation:
+          type: random_date
+          days_ago_min: 365
+          days_ago_max: 7300
+      MANAGER_NAME:
+        type: VARCHAR(100)
+        description: "Store manager"
+        generation: faker.name

@@ -1,0 +1,231 @@
+version: "1.0"
+type: core
+description: "Shared entities across all industries. Every ISF solution starts here."
+
+entities:
+  CUSTOMER:
+    description: "Core customer/account entity — the primary business relationship"
+    schema: ATOMIC
+    key_columns: [CUSTOMER_ID]
+    relationships:
+      - entity: TRANSACTION
+        type: one_to_many
+        fk: CUSTOMER_ID
+      - entity: ADDRESS
+        type: one_to_many
+        fk: CUSTOMER_ID
+    columns:
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      EMAIL:
+        type: VARCHAR(255)
+        description: "Primary contact email"
+        generation: faker.email
+      FIRST_NAME:
+        type: VARCHAR(100)
+        description: "Customer first name"
+        generation: faker.first_name
+      LAST_NAME:
+        type: VARCHAR(100)
+        description: "Customer last name"
+        generation: faker.last_name
+      CUSTOMER_SEGMENT:
+        type: VARCHAR(50)
+        description: "Business segment classification"
+        generation:
+          type: weighted_choice
+          choices: [Enterprise, Mid-Market, Commercial, SMB]
+          weights: [0.15, 0.25, 0.35, 0.25]
+      STATUS:
+        type: VARCHAR(20)
+        description: "Account status"
+        generation:
+          type: weighted_choice
+          choices: [active, inactive, suspended]
+          weights: [0.85, 0.10, 0.05]
+      CREATED_AT:
+        type: TIMESTAMP_NTZ
+        description: "Account creation timestamp"
+        generation: random_date
+
+  TRANSACTION:
+    description: "Generic transaction record — financial or behavioral"
+    schema: ATOMIC
+    key_columns: [TRANSACTION_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+      - entity: PRODUCT
+        type: many_to_one
+        fk: PRODUCT_ID
+    columns:
+      TRANSACTION_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+        generation: customer_ref
+      PRODUCT_ID:
+        type: VARCHAR(36)
+        description: "FK to PRODUCT"
+        constraint: FOREIGN KEY
+        generation: product_ref
+      AMOUNT:
+        type: NUMBER(12,2)
+        description: "Transaction value"
+        generation:
+          type: lognormal
+          mean: 50
+          sigma: 1.5
+          min: 1
+          max: 10000
+      TRANSACTION_DATE:
+        type: TIMESTAMP_NTZ
+        description: "When transaction occurred"
+        generation: random_date
+      TRANSACTION_TYPE:
+        type: VARCHAR(50)
+        description: "Category of transaction"
+      CHANNEL:
+        type: VARCHAR(50)
+        description: "Transaction channel"
+        generation:
+          type: weighted_choice
+          choices: [web, mobile, in_store, api, partner]
+          weights: [0.35, 0.30, 0.20, 0.10, 0.05]
+
+  PRODUCT:
+    description: "Product or service catalog item"
+    schema: ATOMIC
+    key_columns: [PRODUCT_ID]
+    relationships:
+      - entity: TRANSACTION
+        type: one_to_many
+        fk: PRODUCT_ID
+    columns:
+      PRODUCT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      SKU:
+        type: VARCHAR(50)
+        description: "Stock keeping unit"
+        generation: sequential_id
+      NAME:
+        type: VARCHAR(200)
+        description: "Product name"
+        generation: faker.catch_phrase
+      CATEGORY:
+        type: VARCHAR(100)
+        description: "Product category"
+      SUBCATEGORY:
+        type: VARCHAR(100)
+        description: "Product subcategory"
+      UNIT_PRICE:
+        type: NUMBER(10,2)
+        description: "Standard unit price"
+        generation:
+          type: lognormal
+          mean: 25
+          sigma: 1.0
+          min: 0.99
+          max: 5000
+      IS_ACTIVE:
+        type: BOOLEAN
+        description: "Whether product is currently offered"
+        generation:
+          type: weighted_choice
+          choices: [true, false]
+          weights: [0.90, 0.10]
+
+  ADDRESS:
+    description: "Physical or mailing address"
+    schema: ATOMIC
+    key_columns: [ADDRESS_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+    columns:
+      ADDRESS_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+        generation: customer_ref
+      ADDRESS_TYPE:
+        type: VARCHAR(20)
+        description: "billing, shipping, or both"
+        generation:
+          type: weighted_choice
+          choices: [billing, shipping, both]
+          weights: [0.30, 0.30, 0.40]
+      STREET:
+        type: VARCHAR(200)
+        description: "Street address"
+        generation: faker.street_address
+      CITY:
+        type: VARCHAR(100)
+        description: "City name"
+        generation: faker.city
+      STATE_PROVINCE:
+        type: VARCHAR(100)
+        description: "State or province"
+        generation: faker.state
+      POSTAL_CODE:
+        type: VARCHAR(20)
+        description: "Postal/ZIP code"
+        generation: faker.zipcode
+      COUNTRY:
+        type: VARCHAR(3)
+        description: "ISO 3166-1 alpha-3 country code"
+        generation:
+          type: weighted_choice
+          choices: [USA, CAN, GBR, DEU, AUS]
+          weights: [0.60, 0.15, 0.10, 0.08, 0.07]
+
+  EVENT:
+    description: "Generic event/activity record — behavioral tracking"
+    schema: ATOMIC
+    key_columns: [EVENT_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+    columns:
+      EVENT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+        generation: customer_ref
+      EVENT_TYPE:
+        type: VARCHAR(100)
+        description: "Type of event (page_view, click, login, etc.)"
+      EVENT_TIMESTAMP:
+        type: TIMESTAMP_NTZ
+        description: "When event occurred"
+        generation: random_date
+      EVENT_PROPERTIES:
+        type: VARIANT
+        description: "JSON payload with event-specific attributes"
+      SOURCE_SYSTEM:
+        type: VARCHAR(50)
+        description: "System that generated the event"

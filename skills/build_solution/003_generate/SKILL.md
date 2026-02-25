@@ -56,6 +56,8 @@ If validation fails, list specific errors and prompt user to fix.
 
 **⚠️ MANDATORY STOPPING POINT**: Ask user for generation approach.
 
+**Log**: Record `tool_selection` — append to `specs/{solution}/decision-log.jsonl`: step "Generate, Step 3: Generation Mode", value_selected (Standard/LLM-Powered/Rule-Based), alternatives, rationale.
+
 ```
 Select data generation mode:
 
@@ -86,6 +88,8 @@ Recommendations:
 ### Step 4: Confirm Generation Strategy
 
 **⚠️ MANDATORY STOPPING POINT**: Present plan before generating.
+
+**Log**: Record `approval` — append to `specs/{solution}/decision-log.jsonl`: step "Generate, Step 4: Confirm Strategy", value_selected (proceed/modify), alternatives, rationale.
 
 ```
 ## Data Generation Plan

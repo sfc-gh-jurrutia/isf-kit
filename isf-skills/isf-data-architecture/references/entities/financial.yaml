@@ -1,0 +1,227 @@
+version: "1.0"
+type: industry
+extends: _core
+industry: financial
+isf_code: FSI
+description: "Financial Services — banking, insurance, wealth management, capital markets"
+
+entities:
+  CUSTOMER:
+    extends: _core.CUSTOMER
+    additional_columns:
+      CUSTOMER_SINCE:
+        type: DATE
+        description: "Date relationship began"
+        generation: random_date
+      RISK_RATING:
+        type: VARCHAR(20)
+        description: "Credit risk classification"
+        generation:
+          type: weighted_choice
+          choices: [Low, Medium, High, Very High]
+          weights: [0.40, 0.35, 0.20, 0.05]
+      KYC_STATUS:
+        type: VARCHAR(20)
+        description: "Know Your Customer verification status"
+        generation:
+          type: weighted_choice
+          choices: [Verified, Pending, Expired, Flagged]
+          weights: [0.75, 0.10, 0.10, 0.05]
+      RELATIONSHIP_MANAGER:
+        type: VARCHAR(100)
+        description: "Assigned relationship manager"
+        generation: faker.name
+
+  ACCOUNT:
+    description: "Financial account (checking, savings, investment, loan)"
+    schema: ATOMIC
+    key_columns: [ACCOUNT_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+      - entity: TRANSACTION
+        type: one_to_many
+        fk: ACCOUNT_ID
+    columns:
+      ACCOUNT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+        generation: customer_ref
+      ACCOUNT_TYPE:
+        type: VARCHAR(50)
+        description: "Checking, Savings, Investment, Loan, Credit"
+        generation:
+          type: weighted_choice
+          choices: [Checking, Savings, Investment, Loan, Credit]
+          weights: [0.30, 0.25, 0.20, 0.15, 0.10]
+      ACCOUNT_NUMBER:
+        type: VARCHAR(20)
+        description: "Masked account number"
+        generation: sequential_id
+      BALANCE:
+        type: NUMBER(14,2)
+        description: "Current balance"
+        generation:
+          type: lognormal
+          mean: 5000
+          sigma: 2.0
+          min: 0
+          max: 5000000
+      CURRENCY:
+        type: VARCHAR(3)
+        description: "ISO 4217 currency code"
+        generation:
+          type: weighted_choice
+          choices: [USD, EUR, GBP, CAD, JPY]
+          weights: [0.65, 0.15, 0.08, 0.07, 0.05]
+      OPENED_DATE:
+        type: DATE
+        description: "Account opening date"
+        generation: random_date
+      STATUS:
+        type: VARCHAR(20)
+        description: "Active, Closed, Frozen, Dormant"
+
+  POSITION:
+    description: "Investment or portfolio position"
+    schema: ATOMIC
+    key_columns: [POSITION_ID]
+    relationships:
+      - entity: ACCOUNT
+        type: many_to_one
+        fk: ACCOUNT_ID
+    columns:
+      POSITION_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      ACCOUNT_ID:
+        type: VARCHAR(36)
+        description: "FK to ACCOUNT"
+        constraint: FOREIGN KEY
+      INSTRUMENT_ID:
+        type: VARCHAR(36)
+        description: "Security or instrument identifier"
+      INSTRUMENT_TYPE:
+        type: VARCHAR(50)
+        description: "Equity, Bond, ETF, Option, Fund"
+      TICKER:
+        type: VARCHAR(10)
+        description: "Trading symbol"
+      QUANTITY:
+        type: NUMBER(12,4)
+        description: "Number of units held"
+      COST_BASIS:
+        type: NUMBER(14,2)
+        description: "Original purchase cost"
+      MARKET_VALUE:
+        type: NUMBER(14,2)
+        description: "Current market value"
+      AS_OF_DATE:
+        type: DATE
+        description: "Valuation date"
+
+  TRADE:
+    description: "Securities trade execution"
+    schema: ATOMIC
+    key_columns: [TRADE_ID]
+    relationships:
+      - entity: ACCOUNT
+        type: many_to_one
+        fk: ACCOUNT_ID
+      - entity: POSITION
+        type: many_to_one
+        fk: POSITION_ID
+    columns:
+      TRADE_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      ACCOUNT_ID:
+        type: VARCHAR(36)
+        description: "FK to ACCOUNT"
+        constraint: FOREIGN KEY
+      TRADE_TYPE:
+        type: VARCHAR(10)
+        description: "BUY or SELL"
+        generation:
+          type: weighted_choice
+          choices: [BUY, SELL]
+          weights: [0.55, 0.45]
+      TICKER:
+        type: VARCHAR(10)
+        description: "Trading symbol"
+      QUANTITY:
+        type: NUMBER(12,4)
+        description: "Number of units traded"
+      PRICE:
+        type: NUMBER(12,4)
+        description: "Execution price per unit"
+      TOTAL_VALUE:
+        type: NUMBER(14,2)
+        description: "Total trade value"
+      TRADE_DATE:
+        type: TIMESTAMP_NTZ
+        description: "Execution timestamp"
+        generation: random_date
+      SETTLEMENT_DATE:
+        type: DATE
+        description: "Settlement date (T+1 or T+2)"
+
+  FRAUD_ALERT:
+    description: "Suspicious activity detection record"
+    schema: ATOMIC
+    key_columns: [ALERT_ID]
+    relationships:
+      - entity: TRANSACTION
+        type: many_to_one
+        fk: TRANSACTION_ID
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+    columns:
+      ALERT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      TRANSACTION_ID:
+        type: VARCHAR(36)
+        description: "FK to TRANSACTION"
+        constraint: FOREIGN KEY
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+      ALERT_TYPE:
+        type: VARCHAR(50)
+        description: "Velocity, amount anomaly, geo mismatch, etc."
+      RISK_SCORE:
+        type: NUMBER(5,2)
+        description: "ML-generated risk score (0-100)"
+        generation:
+          type: lognormal
+          mean: 30
+          sigma: 1.0
+          min: 0
+          max: 100
+      STATUS:
+        type: VARCHAR(20)
+        description: "Open, Investigating, Confirmed, Dismissed"
+        generation:
+          type: weighted_choice
+          choices: [Open, Investigating, Confirmed, Dismissed]
+          weights: [0.30, 0.25, 0.15, 0.30]
+      CREATED_AT:
+        type: TIMESTAMP_NTZ
+        description: "When alert was generated"
+        generation: random_date

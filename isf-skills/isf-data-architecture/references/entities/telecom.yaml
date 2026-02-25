@@ -1,0 +1,136 @@
+version: "1.0"
+type: industry
+extends: _core
+industry: telecom
+isf_code: TEL
+description: "Telecommunications — mobile, broadband, network operations"
+
+entities:
+  CUSTOMER:
+    extends: _core.CUSTOMER
+    additional_columns:
+      ACCOUNT_TYPE:
+        type: VARCHAR(30)
+        description: "Consumer, Business, Enterprise"
+        generation:
+          type: weighted_choice
+          choices: [Consumer, Business, Enterprise]
+          weights: [0.70, 0.20, 0.10]
+      CONTRACT_END_DATE:
+        type: DATE
+        description: "Current contract expiration"
+      CHURN_RISK_SCORE:
+        type: NUMBER(5,2)
+        description: "ML-predicted churn probability"
+
+  SUBSCRIBER:
+    description: "Individual mobile/broadband subscription line"
+    schema: ATOMIC
+    key_columns: [SUBSCRIBER_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+    columns:
+      SUBSCRIBER_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+      PHONE_NUMBER:
+        type: VARCHAR(15)
+        description: "Subscriber phone number"
+      PLAN_NAME:
+        type: VARCHAR(100)
+        description: "Active service plan"
+      DATA_LIMIT_GB:
+        type: NUMBER(6,1)
+        description: "Monthly data allowance"
+      DEVICE_TYPE:
+        type: VARCHAR(50)
+        description: "Handset model or modem type"
+      ACTIVATION_DATE:
+        type: DATE
+        description: "Line activation date"
+      STATUS:
+        type: VARCHAR(20)
+        description: "Active, Suspended, Terminated"
+
+  USAGE_RECORD:
+    description: "Call, data, or SMS usage event"
+    schema: ATOMIC
+    key_columns: [USAGE_ID]
+    relationships:
+      - entity: SUBSCRIBER
+        type: many_to_one
+        fk: SUBSCRIBER_ID
+    columns:
+      USAGE_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      SUBSCRIBER_ID:
+        type: VARCHAR(36)
+        description: "FK to SUBSCRIBER"
+        constraint: FOREIGN KEY
+      USAGE_TYPE:
+        type: VARCHAR(20)
+        description: "Voice, Data, SMS, MMS"
+        generation:
+          type: weighted_choice
+          choices: [Data, Voice, SMS, MMS]
+          weights: [0.60, 0.20, 0.15, 0.05]
+      USAGE_TIMESTAMP:
+        type: TIMESTAMP_NTZ
+        description: "When usage occurred"
+        generation: random_date
+      DURATION_SECONDS:
+        type: NUMBER(8,0)
+        description: "Duration for voice calls"
+      DATA_MB:
+        type: NUMBER(10,2)
+        description: "Data consumed in MB"
+      CELL_TOWER_ID:
+        type: VARCHAR(36)
+        description: "Serving cell tower"
+
+  NETWORK_EVENT:
+    description: "Network incident or performance event"
+    schema: ATOMIC
+    key_columns: [EVENT_ID]
+    columns:
+      EVENT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      EVENT_TYPE:
+        type: VARCHAR(50)
+        description: "Outage, Degradation, Maintenance, Capacity Alert"
+      SEVERITY:
+        type: VARCHAR(10)
+        description: "Critical, Major, Minor, Info"
+        generation:
+          type: weighted_choice
+          choices: [Info, Minor, Major, Critical]
+          weights: [0.40, 0.30, 0.20, 0.10]
+      AFFECTED_REGION:
+        type: VARCHAR(100)
+        description: "Geographic area affected"
+      AFFECTED_SUBSCRIBERS:
+        type: NUMBER(10,0)
+        description: "Estimated subscribers impacted"
+      START_TIME:
+        type: TIMESTAMP_NTZ
+        description: "When event started"
+      END_TIME:
+        type: TIMESTAMP_NTZ
+        description: "When event resolved"
+      ROOT_CAUSE:
+        type: VARCHAR(500)
+        description: "Root cause analysis (post-resolution)"

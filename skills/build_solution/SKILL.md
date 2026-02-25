@@ -90,6 +90,19 @@ Ready to build? [Proceed] [Review spec first]
 
 **⚠️ MANDATORY STOPPING POINT**: Confirm artifacts look correct before building.
 
+**Log**: Record `approval` — append to `specs/{solution}/decision-log.jsonl`: step "build_solution, Step 1: Artifact Validation", value_selected (Proceed/Review spec first), alternatives, rationale.
+
+### Step 1.5: Sync Decision Log
+
+If a Snowflake connection is available, sync any existing decision log entries to Snowflake:
+
+1. Check for `specs/{solution}/decision-log.jsonl`
+2. If it exists, create the LOGS schema and table if needed (see `templates/sql/decision_log_table.sql`)
+3. Insert any entries not yet synced
+4. This captures all decisions from `specify_solution` that accumulated before a connection existed
+
+If no connection is available, skip — entries remain local and sync on next run.
+
 ### Step 2: Complexity Check
 
 Read the `Workflow Mode` section from `prompt_plan.md`:

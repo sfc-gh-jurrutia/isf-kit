@@ -36,6 +36,8 @@ Or select from recent tables in current context.
 
 **⚠️ MANDATORY STOPPING POINT**: Wait for response.
 
+**Log**: Record `configuration` — append to `specs/{solution}/decision-log.jsonl`: step "Semantic Model, Step 1: Source Table", value_selected (table reference), rationale.
+
 ### Step 2: Discover Schema
 
 **Query** table structure:
@@ -91,6 +93,8 @@ Suggested primary key: CUSTOMER_ID
 ```
 
 **⚠️ MANDATORY STOPPING POINT**: Wait for confirmation.
+
+**Log**: Record `architecture_choice` — append to `specs/{solution}/decision-log.jsonl`: step "Semantic Model, Step 3: Column Classification", value_selected (Accept/Modify classifications), alternatives, rationale.
 
 ### Step 4: Configure Measures
 
@@ -192,6 +196,8 @@ Save to:
 ```
 
 **⚠️ MANDATORY STOPPING POINT**: Wait for save location.
+
+**Log**: Record `configuration` — append to `specs/{solution}/decision-log.jsonl`: step "Semantic Model, Step 6: Save Location", value_selected (Local project/Snowflake stage/Custom path), alternatives, rationale.
 
 ## Sample Questions Generator
 

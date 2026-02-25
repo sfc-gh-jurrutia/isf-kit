@@ -1,0 +1,251 @@
+version: "1.0"
+type: industry
+extends: _core
+industry: media
+isf_code: MED
+description: "Media & Entertainment — streaming, content, advertising, gaming"
+
+entities:
+  CUSTOMER:
+    extends: _core.CUSTOMER
+    additional_columns:
+      SUBSCRIPTION_TIER:
+        type: VARCHAR(20)
+        description: "Free, Basic, Premium, Family"
+        generation:
+          type: weighted_choice
+          choices: [Free, Basic, Premium, Family]
+          weights: [0.30, 0.30, 0.25, 0.15]
+      SUBSCRIPTION_START:
+        type: DATE
+        description: "When subscription began"
+        generation: random_date
+      CHURN_RISK_SCORE:
+        type: NUMBER(5,2)
+        description: "ML-predicted churn probability (0-100)"
+        generation:
+          type: lognormal
+          mean: 20
+          sigma: 1.0
+          min: 0
+          max: 100
+      PREFERRED_DEVICE:
+        type: VARCHAR(30)
+        description: "Primary viewing device"
+        generation:
+          type: weighted_choice
+          choices: [TV, Mobile, Tablet, Desktop]
+          weights: [0.35, 0.30, 0.15, 0.20]
+
+  CONTENT:
+    description: "Media content item (video, article, podcast, game)"
+    schema: ATOMIC
+    key_columns: [CONTENT_ID]
+    columns:
+      CONTENT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      TITLE:
+        type: VARCHAR(500)
+        description: "Content title"
+        generation: faker.catch_phrase
+      CONTENT_TYPE:
+        type: VARCHAR(50)
+        description: "TV_SHOW, MOVIE, SPORTS, NEWS, DOCUMENTARY"
+        generation:
+          type: weighted_choice
+          choices: [TV_SHOW, MOVIE, SPORTS, NEWS, DOCUMENTARY]
+          weights: [0.40, 0.30, 0.15, 0.10, 0.05]
+      GENRE:
+        type: VARCHAR(100)
+        description: "Primary genre"
+        generation:
+          type: weighted_choice
+          choices: [Comedy, Drama, Action, Horror, Thriller, Romance, Documentary, Reality TV, Sports, News, Kids & Family, Sci-Fi, Crime]
+          weights: [0.15, 0.15, 0.12, 0.06, 0.08, 0.08, 0.05, 0.08, 0.08, 0.05, 0.05, 0.03, 0.02]
+      DURATION_SECONDS:
+        type: NUMBER(10,0)
+        description: "Content length in seconds"
+        generation:
+          type: lognormal
+          mean: 3600
+          sigma: 0.8
+          min: 120
+          max: 14400
+      RELEASE_DATE:
+        type: DATE
+        description: "Publication/release date"
+        generation:
+          type: random_date
+          days_ago_min: 0
+          days_ago_max: 3650
+      RATING:
+        type: VARCHAR(10)
+        description: "Content rating (G, PG, PG-13, R, etc.)"
+        generation:
+          type: weighted_choice
+          choices: [G, PG, PG-13, R, TV-MA, TV-14, TV-PG]
+          weights: [0.10, 0.15, 0.20, 0.15, 0.15, 0.15, 0.10]
+      IS_ORIGINAL:
+        type: BOOLEAN
+        description: "Platform original content"
+        generation:
+          type: boolean
+          weight: 0.25
+      SEASON_COUNT:
+        type: NUMBER(4,0)
+        description: "Number of seasons (TV shows only)"
+        generation:
+          type: uniform_int
+          min: 1
+          max: 12
+      EPISODE_COUNT:
+        type: NUMBER(6,0)
+        description: "Total episodes (TV shows only)"
+        generation:
+          type: uniform_int
+          min: 6
+          max: 200
+      IMDB_RATING:
+        type: NUMBER(3,1)
+        description: "IMDB-style rating"
+        generation:
+          type: uniform_float
+          min: 4.0
+          max: 9.5
+
+  SESSION:
+    description: "User viewing/listening/playing session"
+    schema: ATOMIC
+    key_columns: [SESSION_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+      - entity: CONTENT
+        type: many_to_one
+        fk: CONTENT_ID
+    columns:
+      SESSION_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+        generation: customer_ref
+      CONTENT_ID:
+        type: VARCHAR(36)
+        description: "FK to CONTENT"
+        constraint: FOREIGN KEY
+      SESSION_START:
+        type: TIMESTAMP_NTZ
+        description: "When session began"
+        generation:
+          type: random_date
+          days_ago_min: 0
+          days_ago_max: 90
+      SESSION_END:
+        type: TIMESTAMP_NTZ
+        description: "When session ended"
+      WATCH_TIME_SECONDS:
+        type: NUMBER(10,0)
+        description: "Actual time spent consuming content"
+        generation:
+          type: lognormal
+          mean: 2400
+          sigma: 0.8
+          min: 60
+          max: 14400
+      COMPLETION_PERCENT:
+        type: NUMBER(5,2)
+        description: "How much of content was consumed"
+        generation:
+          type: uniform_float
+          min: 0.05
+          max: 1.0
+      DEVICE_TYPE:
+        type: VARCHAR(30)
+        description: "TV, Mobile, Tablet, Desktop"
+        generation:
+          type: weighted_choice
+          choices: [TV, Mobile, Tablet, Desktop]
+          weights: [0.35, 0.30, 0.15, 0.20]
+      QUALITY:
+        type: VARCHAR(10)
+        description: "SD, HD, 4K"
+        generation:
+          type: weighted_choice
+          choices: [SD, HD, 4K]
+          weights: [0.10, 0.50, 0.40]
+      IS_BINGE:
+        type: BOOLEAN
+        description: "Part of a binge session (3+ episodes)"
+        generation:
+          type: boolean
+          weight: 0.25
+      AUTOPLAY:
+        type: BOOLEAN
+        description: "Started via autoplay"
+        generation:
+          type: boolean
+          weight: 0.40
+
+  SUBSCRIPTION:
+    description: "Subscription lifecycle record"
+    schema: ATOMIC
+    key_columns: [SUBSCRIPTION_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+    columns:
+      SUBSCRIPTION_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+        generation: customer_ref
+      PLAN_NAME:
+        type: VARCHAR(50)
+        description: "Subscription plan"
+        generation:
+          type: weighted_choice
+          choices: [Free, Basic, Standard, Premium, Family]
+          weights: [0.20, 0.25, 0.25, 0.20, 0.10]
+      MONTHLY_PRICE:
+        type: NUMBER(8,2)
+        description: "Monthly subscription cost"
+        generation:
+          type: weighted_choice
+          choices: [0.00, 7.99, 13.99, 19.99, 25.99]
+          weights: [0.20, 0.25, 0.25, 0.20, 0.10]
+      START_DATE:
+        type: DATE
+        description: "Subscription start"
+        generation: random_date
+      END_DATE:
+        type: DATE
+        description: "Subscription end (NULL if active)"
+      CANCELLATION_REASON:
+        type: VARCHAR(100)
+        description: "Why subscriber cancelled (if applicable)"
+        generation:
+          type: weighted_choice
+          choices: [Too expensive, Not enough content, Using competitor, Temporary pause, Technical issues]
+          weights: [0.30, 0.25, 0.20, 0.15, 0.10]
+      STATUS:
+        type: VARCHAR(20)
+        description: "Active, Cancelled, Paused, Expired"
+        generation:
+          type: weighted_choice
+          choices: [Active, Cancelled, Paused, Expired]
+          weights: [0.65, 0.20, 0.08, 0.07]

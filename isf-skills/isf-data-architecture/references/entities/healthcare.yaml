@@ -1,0 +1,211 @@
+version: "1.0"
+type: industry
+extends: _core
+industry: healthcare
+isf_code: HLS
+description: "Healthcare & Life Sciences — providers, payers, pharma, clinical"
+
+entities:
+  CUSTOMER:
+    extends: _core.CUSTOMER
+    additional_columns:
+      MEMBER_ID:
+        type: VARCHAR(20)
+        description: "Insurance member identifier"
+        generation: sequential_id
+      DATE_OF_BIRTH:
+        type: DATE
+        description: "Patient date of birth"
+        generation: random_date
+      GENDER:
+        type: VARCHAR(10)
+        description: "Patient gender"
+        generation:
+          type: weighted_choice
+          choices: [Male, Female, Non-Binary, Unknown]
+          weights: [0.48, 0.48, 0.02, 0.02]
+      PRIMARY_CARE_PROVIDER_ID:
+        type: VARCHAR(36)
+        description: "FK to PROVIDER"
+        constraint: FOREIGN KEY
+      INSURANCE_PLAN:
+        type: VARCHAR(100)
+        description: "Active insurance plan name"
+
+  PROVIDER:
+    description: "Healthcare provider (physician, facility, organization)"
+    schema: ATOMIC
+    key_columns: [PROVIDER_ID]
+    columns:
+      PROVIDER_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      NPI:
+        type: VARCHAR(10)
+        description: "National Provider Identifier"
+        generation: sequential_id
+      PROVIDER_NAME:
+        type: VARCHAR(200)
+        description: "Provider or facility name"
+        generation: faker.name
+      SPECIALTY:
+        type: VARCHAR(100)
+        description: "Medical specialty"
+        generation:
+          type: weighted_choice
+          choices: [Internal Medicine, Cardiology, Orthopedics, Oncology, Pediatrics, Emergency Medicine, Radiology, Neurology]
+          weights: [0.20, 0.15, 0.12, 0.12, 0.12, 0.10, 0.10, 0.09]
+      FACILITY_TYPE:
+        type: VARCHAR(50)
+        description: "Hospital, Clinic, Urgent Care, Telehealth"
+      NETWORK_STATUS:
+        type: VARCHAR(20)
+        description: "In-Network or Out-of-Network"
+
+  ENCOUNTER:
+    description: "Patient visit or clinical encounter"
+    schema: ATOMIC
+    key_columns: [ENCOUNTER_ID]
+    relationships:
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+      - entity: PROVIDER
+        type: many_to_one
+        fk: PROVIDER_ID
+    columns:
+      ENCOUNTER_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER (patient)"
+        constraint: FOREIGN KEY
+        generation: customer_ref
+      PROVIDER_ID:
+        type: VARCHAR(36)
+        description: "FK to PROVIDER"
+        constraint: FOREIGN KEY
+      ENCOUNTER_DATE:
+        type: TIMESTAMP_NTZ
+        description: "Date/time of encounter"
+        generation: random_date
+      ENCOUNTER_TYPE:
+        type: VARCHAR(50)
+        description: "Inpatient, Outpatient, Emergency, Telehealth"
+        generation:
+          type: weighted_choice
+          choices: [Outpatient, Inpatient, Emergency, Telehealth]
+          weights: [0.50, 0.20, 0.10, 0.20]
+      DISCHARGE_DATE:
+        type: TIMESTAMP_NTZ
+        description: "Discharge date (inpatient only)"
+      LENGTH_OF_STAY:
+        type: NUMBER(5,1)
+        description: "Days in facility"
+      ADMISSION_SOURCE:
+        type: VARCHAR(50)
+        description: "Referral, Emergency, Transfer, Self"
+
+  DIAGNOSIS:
+    description: "Clinical diagnosis associated with an encounter"
+    schema: ATOMIC
+    key_columns: [DIAGNOSIS_ID]
+    relationships:
+      - entity: ENCOUNTER
+        type: many_to_one
+        fk: ENCOUNTER_ID
+    columns:
+      DIAGNOSIS_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      ENCOUNTER_ID:
+        type: VARCHAR(36)
+        description: "FK to ENCOUNTER"
+        constraint: FOREIGN KEY
+      ICD10_CODE:
+        type: VARCHAR(10)
+        description: "ICD-10 diagnosis code"
+      DIAGNOSIS_DESCRIPTION:
+        type: VARCHAR(500)
+        description: "Human-readable diagnosis"
+      DIAGNOSIS_TYPE:
+        type: VARCHAR(20)
+        description: "Primary, Secondary, Admitting"
+        generation:
+          type: weighted_choice
+          choices: [Primary, Secondary, Admitting]
+          weights: [0.50, 0.40, 0.10]
+      DIAGNOSED_DATE:
+        type: DATE
+        description: "Date diagnosis was made"
+
+  CLAIM:
+    description: "Insurance claim for services rendered"
+    schema: ATOMIC
+    key_columns: [CLAIM_ID]
+    relationships:
+      - entity: ENCOUNTER
+        type: many_to_one
+        fk: ENCOUNTER_ID
+      - entity: CUSTOMER
+        type: many_to_one
+        fk: CUSTOMER_ID
+      - entity: PROVIDER
+        type: many_to_one
+        fk: PROVIDER_ID
+    columns:
+      CLAIM_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      ENCOUNTER_ID:
+        type: VARCHAR(36)
+        description: "FK to ENCOUNTER"
+        constraint: FOREIGN KEY
+      CUSTOMER_ID:
+        type: VARCHAR(36)
+        description: "FK to CUSTOMER"
+        constraint: FOREIGN KEY
+      PROVIDER_ID:
+        type: VARCHAR(36)
+        description: "FK to PROVIDER"
+        constraint: FOREIGN KEY
+      BILLED_AMOUNT:
+        type: NUMBER(12,2)
+        description: "Amount billed by provider"
+        generation:
+          type: lognormal
+          mean: 500
+          sigma: 1.5
+          min: 25
+          max: 500000
+      ALLOWED_AMOUNT:
+        type: NUMBER(12,2)
+        description: "Amount allowed by insurance"
+      PAID_AMOUNT:
+        type: NUMBER(12,2)
+        description: "Amount actually paid"
+      PATIENT_RESPONSIBILITY:
+        type: NUMBER(12,2)
+        description: "Copay + deductible + coinsurance"
+      CLAIM_STATUS:
+        type: VARCHAR(20)
+        description: "Submitted, Processing, Paid, Denied, Appealed"
+        generation:
+          type: weighted_choice
+          choices: [Submitted, Processing, Paid, Denied, Appealed]
+          weights: [0.10, 0.10, 0.60, 0.15, 0.05]
+      SERVICE_DATE:
+        type: DATE
+        description: "Date of service"
+      SUBMITTED_DATE:
+        type: DATE
+        description: "Date claim was submitted"

@@ -63,6 +63,8 @@ Scanning specification...
 
 **⚠️ MANDATORY STOPPING POINT**: Present scan results before proceeding.
 
+**Log**: Record `approval` — append to `specs/{solution}/decision-log.jsonl`: step "Clarify, Step 1: Ambiguity Scan", value_selected (proceed/cancel), rationale (number of areas needing clarification).
+
 ### Step 2: Generate Clarification Questions
 
 Create prioritized queue (max 5 questions total):
@@ -109,6 +111,8 @@ Present ONE question at a time.
 ```
 
 **⚠️ MANDATORY STOPPING POINT**: Wait for response after each question.
+
+**Log**: Record `configuration` — append to `specs/{solution}/decision-log.jsonl`: step "Clarify, Step 3: Question {n}", value_selected (chosen option or answer), alternatives (all options shown), rationale.
 
 **Stop questioning when:**
 - All critical ambiguities resolved
