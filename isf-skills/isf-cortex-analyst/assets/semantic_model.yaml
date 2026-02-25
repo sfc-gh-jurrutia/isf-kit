@@ -1,0 +1,77 @@
+# Cortex Analyst Semantic Model Template
+# Replace placeholders and customize for your use case
+
+name: my_semantic_model
+description: >
+  Semantic model for [business domain] analytics.
+
+tables:
+  - name: main_table
+    description: Primary fact table for [domain].
+    base_table:
+      database: MY_DB
+      schema: MART
+      table: MAIN_TABLE_V
+    primary_key:
+      columns: [id]
+
+    dimensions:
+      - name: category
+        synonyms: ["type", "classification"]
+        description: Category of the entity.
+        expr: category
+        data_type: TEXT
+        sample_values: ["Category A", "Category B", "Category C"]
+
+    time_dimensions:
+      - name: created_date
+        synonyms: ["date", "created"]
+        description: Date the record was created.
+        expr: created_date
+        data_type: DATE
+
+    facts:
+      - name: amount
+        description: Numeric amount/value.
+        expr: amount
+        data_type: NUMBER
+
+    metrics:
+      - name: total_amount
+        synonyms: ["sum_amount"]
+        description: Total amount.
+        expr: SUM(main_table.amount)
+
+      - name: avg_amount
+        description: Average amount.
+        expr: AVG(main_table.amount)
+
+    filters:
+      - name: last_30_days
+        synonyms: ["recent"]
+        description: Filter to last 30 days.
+        expr: created_date >= DATEADD(day, -30, CURRENT_DATE)
+
+# Optional: Define relationships if multiple tables
+# relationships:
+#   - name: main_to_dimension
+#     left_table: main_table
+#     right_table: dimension_table
+#     relationship_columns:
+#       - left_column: dim_id
+#         right_column: id
+
+verified_queries:
+  - name: total_by_category
+    question: "What is the total amount by category?"
+    use_as_onboarding_question: true
+    sql: |
+      SELECT category, SUM(amount) AS total_amount
+      FROM __main_table
+      GROUP BY category
+      ORDER BY total_amount DESC
+
+custom_instructions: >
+  When the user asks for "recent" data without specifying a date range,
+  default to the last 30 days using the last_30_days filter.
+

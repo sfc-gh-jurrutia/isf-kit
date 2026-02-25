@@ -1,172 +1,241 @@
-# ISF Skills — Status & Progress
+# ISF Skills — Comprehensive Workflow Status
 
 Last updated: 2026-02-24
 
-## Architecture
+## Workflow Overview
+
+The ISF Solution Generation Engine is an 18-skill workflow that takes customer requirements and produces a fully deployed Snowflake solution with presentation materials.
+
+```mermaid
+flowchart TD
+  subgraph input [Input Layer]
+    SC[isf-spec-curation]
+    RS[isf-repo-scanner]
+  end
+
+  subgraph plan [Planning Layer]
+    SP[isf-solution-planning]
+    SG[isf-solution-style-guide]
+  end
+
+  subgraph arch [Architecture Layer]
+    DA[isf-data-architecture]
+    DG[isf-data-generation]
+  end
+
+  subgraph build [Build Layer]
+    RA[isf-solution-react-app]
+    CA[isf-cortex-agent]
+    CS[isf-cortex-search]
+    CL[isf-cortex-analyst]
+    PU[isf-python-udf]
+    NB[isf-notebook]
+  end
+
+  subgraph deploy [Deploy Layer]
+    DP[isf-deployment]
+  end
+
+  subgraph quality [Quality Layer]
+    ST[isf-solution-testing]
+    RP[isf-solution-reflection-persona]
+    PC[isf-solution-prepublication-checklist]
+  end
+
+  subgraph output [Output Layer]
+    PK[isf-solution-package]
+  end
+
+  subgraph support [Support]
+    DX[isf-diagnostics]
+  end
+
+  RS -->|"repo context"| SC
+  SC -->|"isf-context.md"| SP
+  SG -.->|"tokens + colors"| RA
+  SG -.->|"dark theme"| NB
+  SP -->|"plan.md + tasks.md"| DA
+  DA -->|"entity YAMLs + migrations"| DG
+  DA -->|"schema design"| DP
+  DG -->|"seed data"| DP
+  SP -->|"UI strategy"| RA
+  CA --> DP
+  CS --> CA
+  CL --> CA
+  PU --> CA
+  RA --> DP
+  NB --> DP
+  DP --> ST
+  ST --> RP
+  RP --> PC
+  PC --> PK
+  DX -.->|"troubleshoot any layer"| deploy
+  DX -.->|"troubleshoot any layer"| build
+```
+
+## The Pipeline
+
+### Phase 1: Input
+
+The user provides requirements through one of three paths:
+
+| Path | Skill | Input | Output |
+|------|-------|-------|--------|
+| A: Document Import | `isf-spec-curation` | JSON, PDF, pasted text | Populated `isf-context.md` |
+| B: Conversational | `isf-spec-curation` | Interview-style Q&A | Populated `isf-context.md` |
+| C: Repo Analysis | `isf-repo-scanner` → `isf-spec-curation` | GitHub URL or local path | Populated `isf-context.md` |
+
+**Key artifact**: `isf-context.md` — a structured YAML specification with T1 (user-provided), T2 (recommended), and T3 (skill-generated) fields covering customer context, stakeholders, requirements, architecture, and implementation.
+
+### Phase 2: Planning
+
+| Skill | Input | Output |
+|-------|-------|--------|
+| `isf-solution-planning` | `isf-context.md` | `plan.md`, `tasks.md`, scaffolded project directory |
+| `isf-solution-style-guide` | — (cross-cutting) | Design tokens, color palette, accessibility rules |
+
+**Key artifact**: Scaffolded project following the ISF standard structure with Makefile, schemachange, SPCS deployment.
+
+### Phase 3: Architecture & Data
+
+| Skill | Input | Output |
+|-------|-------|--------|
+| `isf-data-architecture` | `isf-context.md` data_model, entity YAMLs | schemachange migrations in `src/database/migrations/` |
+| `isf-data-generation` | Entity YAMLs + behavior profiles | Seed CSVs in `src/data_engine/output/` |
+
+**Key artifacts**: Versioned DDL migrations and pre-generated seed data (seed=42, committed to repo).
+
+### Phase 4: Build
+
+| Skill | Input | Output |
+|-------|-------|--------|
+| `isf-cortex-analyst` | DATA_MART views | `src/database/cortex/semantic_model.yaml` |
+| `isf-cortex-search` | Documents/text | `src/database/cortex/search_service.sql` |
+| `isf-python-udf` | Business logic requirements | `src/database/functions/*.sql` |
+| `isf-cortex-agent` | Analyst + Search + UDFs | `src/database/cortex/agent.sql` |
+| `isf-solution-react-app` | `plan.md` UI strategy | `src/ui/` + `api/` |
+| `isf-notebook` | ML requirements | `notebooks/*.ipynb` |
+
+**Key artifacts**: Working application code, Cortex objects, and notebooks.
+
+### Phase 5: Deploy
+
+| Skill | Input | Output |
+|-------|-------|--------|
+| `isf-deployment` | Migrations, seed data, app code, SPCS config | Running SPCS service |
+
+**Stages**: `deploy/setup.sql` → schemachange → seed data load → SPCS (Docker build, push, service create).
+
+### Phase 6: Quality
+
+| Skill | Input | Output | Order |
+|-------|-------|--------|-------|
+| `isf-solution-testing` | Deployed solution | 8-layer test results | First |
+| `isf-solution-reflection-persona` | App + isf-context personas | STAR journey audit | Second |
+| `isf-solution-prepublication-checklist` | Full project | Release decision (Ship/No Ship/Conditional) | Third |
+
+### Phase 7: Package
+
+| Skill | Input | Output |
+|-------|-------|--------|
+| `isf-solution-package` | Completed solution + isf-context | Presentation page, architecture SVGs, blog, LinkedIn blurb, slides, video script |
+
+### Support (Any Phase)
+
+| Skill | Purpose |
+|-------|---------|
+| `isf-diagnostics` | 8-layer troubleshooting: connection → roles → warehouse → objects → Cortex → SPCS → project structure → migrations |
+
+## Complete Skill Inventory
+
+### 18 Skills
+
+| # | Skill | Lines | Files | Category |
+|---|-------|-------|-------|----------|
+| 1 | `isf-spec-curation` | 409 | 3 | Input |
+| 2 | `isf-repo-scanner` | 184 | 1 | Input |
+| 3 | `isf-solution-planning` | 249 | 2 | Planning |
+| 4 | `isf-solution-style-guide` | 90 | 3 | Planning (cross-cutting) |
+| 5 | `isf-data-architecture` | 266 | 14 | Architecture |
+| 6 | `isf-data-generation` | 277 | 10 | Architecture |
+| 7 | `isf-cortex-agent` | 279 | 2 | Build (Cortex) |
+| 8 | `isf-cortex-analyst` | 236 | 2 | Build (Cortex) |
+| 9 | `isf-cortex-search` | 231 | 2 | Build (Cortex) |
+| 10 | `isf-python-udf` | 187 | 1 | Build (Cortex) |
+| 11 | `isf-solution-react-app` | 201 | 31 | Build (App) |
+| 12 | `isf-notebook` | 185 | 5 | Build (ML) |
+| 13 | `isf-deployment` | 300 | 5 | Deploy |
+| 14 | `isf-solution-testing` | 183 | 5 | Quality |
+| 15 | `isf-solution-reflection-persona` | 133 | 1 | Quality |
+| 16 | `isf-solution-prepublication-checklist` | 124 | 1 | Quality |
+| 17 | `isf-solution-package` | 237 | 9 | Output |
+| 18 | `isf-diagnostics` | 178 | 1 | Support |
+| | **Total** | **4,148** | **98** | |
+
+## Key Artifacts Across the Pipeline
 
 ```
-                    isf-spec-curation (input)
-                           |
-                    isf-solution-planning (orchestrator)
-                           |
-              +------------+------------+
-              |            |            |
-       isf-data-      isf-solution-  isf-diagnostics
-       architecture   style-guide    (support)
-       (cross-cutting)
-              |
-       +------+------+
-       |             |
-  isf-deploy    isf-data-generate
-       |             |
-       +------+------+
-              |
-    +---------+---------+---------+
-    |         |         |         |
-isf-react  isf-      isf-     isf-cortex-
-  -app    notebook  streamlit   agent
-                                /    \
-                        isf-cortex  isf-cortex
-                         -analyst    -search
-                            \       /
-                          isf-python-udf
-    |         |
-    +---------+
-         |
-  isf-testing
-  isf-persona-reflection
-  isf-prepublication
-         |
-  isf-solution-package
+specs/{solution}/
+├── isf-context.md               # From isf-spec-curation (the contract)
+├── plan.md                      # From isf-solution-planning
+├── tasks.md                     # From isf-solution-planning
+└── repomix-output.xml           # From isf-repo-scanner (if Path C)
+
+{project}/                        # Scaffolded by isf-solution-planning
+├── Makefile                     # Build orchestration
+├── .env.example                 # Connection config template
+├── deploy/
+│   ├── setup.sql                # One-time infra provisioning
+│   └── spcs/
+│       ├── Dockerfile           # Multi-stage React+FastAPI
+│       └── service-spec.yaml    # SPCS service config
+├── src/
+│   ├── ui/                      # React + TypeScript + Tailwind
+│   ├── database/
+│   │   ├── migrations/          # schemachange versioned DDL
+│   │   ├── functions/           # Python UDFs
+│   │   ├── procs/               # Stored procedures
+│   │   ├── roles/               # RBAC config
+│   │   └── cortex/
+│   │       ├── agent.sql
+│   │       ├── semantic_model.yaml
+│   │       └── search_service.sql
+│   └── data_engine/
+│       ├── generators/          # Generation scripts
+│       ├── loaders/             # COPY INTO scripts
+│       ├── specs/               # Data shape specs
+│       └── output/              # Pre-generated CSVs + manifest.json
+├── api/                         # FastAPI backend
+├── models/                      # Semantic models
+├── docs/                        # Architecture specs
+├── tests/                       # UI + API + data tests
+├── notebooks/                   # Snowflake Notebooks (if ML)
+└── solution_presentation/       # Package deliverables
 ```
 
-## Completed Skills (5)
-
-### isf-spec-curation
-- **Purpose**: Generate ISF Solution Specifications from unstructured input
-- **What was done**:
-  - Rewrote SKILL.md from old `snowflake-demo-drd-generation` copy
-  - Merged ISF frontmatter (input_types, industry_scope, isf_components_mapped)
-  - 9 spec sections with Title Case names and machine-readable aliases
-  - Intake questions mapped to spec sections
-  - STAR framework, persona framework, hidden discovery kept from original
-  - Snowflake component vocabulary organized by layer
-  - Quality checklist rebuilt for 9 sections
-  - Downstream skills table (planned ISF skills)
-- **Files**:
-  - `SKILL.md` (409 lines)
-  - `references/isf-context.md` (353 lines) — YAML template with T1/T2/T3 tier annotations
-  - `scripts/scripts_suggestion.md` (158 lines) — rewritten for ISF workflow
-
-### isf-solution-planning
-- **Purpose**: Plan and orchestrate ISF solution projects from curated spec
-- **What was done**:
-  - Rewrote SKILL.md from old `snowflake-demo-planning` copy
-  - Takes isf-context.md as input, produces plan.md, tasks.md, scaffolded project
-  - 5-step workflow: load spec, plan architecture, break down tasks, scaffold, output
-  - Skill index mapping phases and tasks to ISF skills
-  - Updated project structure to ISF standard (schemachange, Makefile, SPCS, React+FastAPI)
-  - Removed Terraform, CloudFormation — uses setup.sql + snow CLI
-  - Constraints updated for ISF (schemachange, httpx, style guide)
-- **Files**:
-  - `SKILL.md` (250 lines)
-  - `assets/project-structure.md` (97 lines) — ISF standard project layout
-
-### isf-solution-style-guide
-- **Purpose**: Cross-cutting style guide for all ISF skills
-- **What was done**:
-  - User-created skill (not modified by us)
-  - Covers: color palette, accessibility, no-emoji rule, dark theme, documentation style
-  - Integration instructions for React, Streamlit, Notebooks, Charts
-- **Files**:
-  - `SKILL.md` (91 lines)
-  - `assets/tokens.css` (26 lines) — CSS design tokens
-  - `references/snowflake_color_scheme.md` (25 lines)
-
-### isf-data-architecture
-- **Purpose**: Design layered data architectures (RAW -> ATOMIC -> DATA_MART)
-- **What was done**:
-  - Built from scratch using original `snowflake-demo-data-architecture` as content source
-  - Replaced 34MB / 170,000 rows of CSV data dictionaries with compact YAML entity files
-  - 10 entity reference files: _core + 9 industries (total ~1,800 lines)
-  - Each entity includes columns, types, FK relationships, and generation rules for synthetic data
-  - Uses `extends: _core` pattern to eliminate cross-industry redundancy
-  - Selective loading pattern: only loads entity files relevant to the spec's industry
-  - schemachange migration versioning (not flat numbered SQL)
-  - Cortex objects section (agent DDL, semantic model, search service)
-  - Entity contribution workflow: save new entities to local YAML, repo contribution planned for later
-  - Zero Snowflake dependencies — YAML files are the source of truth
-- **Files**:
-  - `SKILL.md` (362 lines)
-  - `references/entities/_core.yaml` (231 lines) — CUSTOMER, TRANSACTION, PRODUCT, ADDRESS, EVENT
-  - `references/entities/financial.yaml` (228 lines) — ACCOUNT, POSITION, TRADE, FRAUD_ALERT
-  - `references/entities/healthcare.yaml` (212 lines) — PROVIDER, ENCOUNTER, DIAGNOSIS, CLAIM
-  - `references/entities/manufacturing.yaml` (239 lines) — EQUIPMENT, WORK_ORDER, PRODUCTION_RUN, SENSOR_READING, QUALITY_INSPECTION
-  - `references/entities/retail.yaml` (193 lines) — ORDER, ORDER_LINE, INVENTORY, STORE
-  - `references/entities/aerospace.yaml` (154 lines) — BOOKING, FLIGHT_SEGMENT, AIRCRAFT
-  - `references/entities/media.yaml` (143 lines) — CONTENT, SESSION, SUBSCRIPTION
-  - `references/entities/telecom.yaml` (136 lines) — SUBSCRIBER, USAGE_RECORD, NETWORK_EVENT
-  - `references/entities/energy.yaml` (149 lines) — ASSET, ASSET_READING, OUTAGE, METER
-  - `references/entities/public_sector.yaml` (115 lines) — CASE, SERVICE_REQUEST
-  - `assets/migration_template.sql` (16 lines)
-
-### isf-diagnostics
-- **Purpose**: Troubleshoot Snowflake environment and ISF solution issues
-- **What was done**:
-  - Rewrote SKILL.md from old `snowflake-diagnostics` copy
-  - Expanded from 6 to 8 diagnostic layers (added Cortex, SPCS, project structure, migrations)
-  - Output format follows style guide: [OK], [ERROR], [WARN] instead of emojis
-  - Folded 3 scenarios from deleted README into SKILL.md
-  - Added debug order guidance (Layer 1 up)
-  - Deleted redundant README.md
-- **Files**:
-  - `SKILL.md` (180 lines)
-
-## Remaining Skills (13)
-
-### Build Layer
-| Skill | Purpose | Source Material |
-|-------|---------|---------------|
-| `isf-deploy` | schemachange migrations, SPCS deployment, setup.sql | `skills/build_solution/005_deploy/`, `skills/build_solution/deployment/` |
-| `isf-data-generate` | Synthetic data from entity YAMLs + generation rules | `skills/build_solution/003_generate/`, `skills/build_solution/generators/` |
-| `isf-react-app` | React+FastAPI scaffold, components, Cortex integration | `skills/build_solution/react-app/` |
-| `isf-notebook` | Snowflake Notebooks, GPU, distributed training | `skills/build_solution/notebook/` |
-| `isf-streamlit` | Streamlit in Snowflake (secondary to React) | Reference project `snowflake-streamlit` |
-
-### Cortex Layer
-| Skill | Purpose | Source Material |
-|-------|---------|---------------|
-| `isf-cortex-agent` | Multi-tool agent DDL, tool_resources, streaming | `skills/build_solution/cortex-agent/` |
-| `isf-cortex-analyst` | Semantic model/view, verified queries | `skills/build_solution/cortex-analyst/` |
-| `isf-cortex-search` | RAG pipelines, document parsing, search service | `skills/build_solution/cortex-search/` |
-| `isf-python-udf` | UDFs and UDTFs for business logic | New |
-
-### Quality & Packaging
-| Skill | Purpose | Source Material |
-|-------|---------|---------------|
-| `isf-testing` | Test cycle, validation, quality gates | `skills/build_solution/references/testing-spec.md` |
-| `isf-persona-reflection` | STAR journey review, persona coverage audit | Reference project `snowflake-demo-reflection-persona` |
-| `isf-prepublication` | Pre-ship validation, block-release signals | Reference project `snowflake-demo-prepublication-checklist` |
-| `isf-solution-package` | Presentations, blog, video, architecture diagrams | `skills/solution-package/` |
-
-### Utilities (discussed, not yet in isf-skills/)
-| Capability | Status |
-|-----------|--------|
-| `isf-repo-scanner` | Designed in old skills/, needs ISF version |
-| Decision log (sidecar) | Schema + DDL created in old skills/, needs wiring into isf-skills/ |
-
-## Design Decisions Made
+## Design Decisions
 
 | Decision | Rationale |
 |----------|-----------|
-| React+FastAPI is default frontend | Consistent pipeline, SPCS deployment, eliminates Streamlit/React mismatch |
-| SiS (Streamlit) is secondary option | Valid for lightweight interactive apps, not the default |
-| YAML entity files replace CSVs | 34MB -> ~1,800 lines, fits in LLM context, includes generation rules |
-| No Snowflake dependency for skills | YAML is source of truth, Snowflake table is optional project-level enhancement |
-| schemachange for migrations | Versioned DDL, CI/CD compatible, replaces flat numbered SQL files |
-| Makefile replaces shell scripts | `make deploy`, `make test`, etc. instead of deploy.sh/run.sh/clean.sh |
-| setup.sql for provisioning | One-time infra SQL, no Terraform or Python provisioning scripts |
-| isf-context.md is the contract | Structured YAML with T1/T2/T3 tiers, replaces flat markdown specs |
+| `isf-context.md` is the contract | Structured YAML with T1/T2/T3 tiers replaces flat markdown specs |
+| React+FastAPI is default frontend | Consistent pipeline, SPCS deployment, eliminates framework mismatch |
+| YAML entity files replace CSVs | 34MB → ~2,000 lines; fits in LLM context; includes generation rules |
+| No Snowflake dependency for skills | YAML is source of truth; works offline |
+| schemachange for migrations | Versioned DDL, CI/CD compatible |
+| Makefile replaces shell scripts | `make deploy`, `make test` — simpler orchestration |
+| `setup.sql` for provisioning | One-time SQL, no Terraform/Python provisioning |
+| `npx repomix` for repo scanning | No global install; only needs Node.js |
 | Entity contribution saves locally | Repo contribution (feature branch + PR) planned for later |
-| npx repomix for repo scanning | No global install required, only needs Node.js/npm |
-| Decision log is sidecar architecture | Observes workflow, never blocks it, local JSONL + optional Snowflake sync |
+| Skills are modular, not monolithic | Each skill has clear input/output; no nested sub-skills |
+| References loaded selectively | Only load entity/pattern files relevant to the spec's industry |
+| Hidden discovery is first-class | Data generation verifies the insight; testing validates it; persona reflection checks it's accessible |
+
+## What's Not Built Yet
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Decision log sidecar | Designed (schema + DDL exist in old `skills/`) | Not wired into isf-skills; needs isf-context integration |
+| Entity contribution to repo | Documented in isf-data-architecture | Git automation (branch + PR) not implemented |
+| ISF ID catalog | Referenced throughout | No actual catalog of SOL-xxx, UC-xxx, PAIN-xxx values yet |
+| CI/CD pipeline | `ci_test_cycle.sh` template exists | No GitHub Actions workflow file |
+| Industry YAML files | 9 created | AME and GOV not yet created |

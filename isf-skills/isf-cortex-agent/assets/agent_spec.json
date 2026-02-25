@@ -1,0 +1,38 @@
+{
+  "models": {
+    "orchestration": "auto"
+  },
+  "tools": [
+    {
+      "tool_spec": {
+        "type": "cortex_analyst_text_to_sql",
+        "name": "ANALYTICS_TOOL",
+        "description": "Query structured data using natural language. Use for metrics, aggregations, and data analysis questions."
+      }
+    },
+    {
+      "tool_spec": {
+        "type": "cortex_search",
+        "name": "DOC_SEARCH",
+        "description": "Search documents and knowledge base. Use for how-to, configuration, and troubleshooting questions."
+      }
+    }
+  ],
+  "tool_resources": {
+    "ANALYTICS_TOOL": {
+      "semantic_model_file": "@DB.SCHEMA.MODELS/semantic_model.yaml",
+      "execution_environment": {
+        "type": "warehouse",
+        "warehouse": "AGENT_WH",
+        "query_timeout": 300
+      }
+    },
+    "DOC_SEARCH": {
+      "search_service": "DB.SCHEMA.DOC_SEARCH_SVC",
+      "id_column": "CHUNK_ID",
+      "title_column": "RELATIVE_PATH",
+      "max_results": 5
+    }
+  }
+}
+
