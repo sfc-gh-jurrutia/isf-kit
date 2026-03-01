@@ -5,6 +5,7 @@ description: >
   semantic models/views, (2) defining dimensions and metrics, (3) configuring
   verified queries, (4) implementing Cortex Search for high-cardinality
   dimensions, or (5) deploying YAML to Semantic Views.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Cortex Analyst
@@ -31,6 +32,7 @@ Output: `src/database/cortex/semantic_model.yaml` (authored in Git, deployed as 
 | File | Purpose | When Loaded |
 |------|---------|-------------|
 | `assets/semantic_model.yaml` | Template YAML with example dimensions, metrics, verified queries | When creating a new model |
+| `references/ml-semantic-view-pattern.md` | ML explainability semantic view template (SHAP, metrics, PDP, calibration) | When solution includes ML notebooks |
 
 ## Core Workflow
 
@@ -194,6 +196,103 @@ ORDER BY REQUEST_TIMESTAMP DESC;
 | Deployment | YAML in Git → Semantic View in Snowflake |
 | Golden queries | Minimum 3-5 verified queries per model |
 
+## Advanced Patterns
+
+### Multiple Semantic Views per Agent
+
+When a solution has distinct data domains (e.g., operational metrics vs ML insights), split them into separate semantic views rather than one monolithic model. The Cortex Agent references each as a separate Analyst tool.
+
+```
+src/database/cortex/
+├── operational_model.yaml          # Operational data (DATA_MART tables)
+├── ml_insights_model.yaml          # ML explainability (ML schema tables)
+├── agent.sql                       # Agent with 2 Analyst tools
+└── search_service.sql
+```
+
+**When to split:**
+- Data lives in different schemas (DATA_MART vs ML)
+- Different user intents map to different tables
+- A single model would exceed 50-100 column recommended max
+- Agent routing benefits from distinct tool descriptions
+
+**When to keep one model:**
+- All tables are in the same schema
+- Queries frequently join across the tables
+- Model is small enough (under 50 columns total)
+
+### Cross-Schema Models
+
+A semantic model can reference tables from multiple schemas. Specify the full path in each `base_table`:
+
+```yaml
+tables:
+  - name: entity_summary
+    base_table:
+      database: "{DATABASE}"
+      schema: "{DATA_MART}"
+      table: ENTITY_SUMMARY_V
+  - name: model_metrics
+    base_table:
+      database: "{DATABASE}"
+      schema: ML
+      table: MODEL_METRICS
+  - name: feature_importance
+    base_table:
+      database: "{DATABASE}"
+      schema: ML
+      table: GLOBAL_FEATURE_IMPORTANCE
+```
+
+### Custom Instructions Block
+
+Add a `custom_instructions` section to teach the model domain-specific terminology, abbreviations, and query routing guidance. This is critical for industry-specific solutions where the LLM may not know the domain vocabulary.
+
+```yaml
+custom_instructions: |
+  DOMAIN TERMINOLOGY:
+  - {TERM_A}: {definition} (unit: {unit})
+  - {TERM_B}: {definition} (unit: {unit})
+  - {ABBREVIATION}: stands for {full_name}
+
+  QUERY ROUTING:
+  - For {metric_type} questions → use {table_name}
+  - For {comparison} questions → join {table_a} with {table_b}
+  - For ML explanations → use feature_importance table
+
+  DATA NOTES:
+  - {table_name} contains data from {date_range}
+  - {column_name} values are {description of valid values}
+```
+
+### Named Filters
+
+Define reusable filters that users can reference by name. Include filters for common query patterns and data quality:
+
+```yaml
+filters:
+  - name: active_records
+    expr: "{status_column} = 'ACTIVE'"
+
+  - name: anomalies_only
+    expr: "{anomaly_flag_column} = TRUE"
+
+  - name: valid_measurements
+    expr: "{metric_column} > 0 AND {metric_column} IS NOT NULL"
+
+  - name: recent_data
+    expr: "{date_column} >= DATEADD(day, -30, CURRENT_DATE)"
+```
+
+### ML Explainability Semantic View
+
+When the solution includes ML notebooks, create a dedicated semantic view over the ML schema tables. **Load** `references/ml-semantic-view-pattern.md` for the full template.
+
+This enables natural-language queries like:
+- "What are the top features for the {model_name} model?"
+- "Show me the calibration curve for {model_name}"
+- "How accurate is the {model_name} model?"
+
 ## Commands
 
 ```bash
@@ -225,6 +324,27 @@ src/database/cortex/
 3. Deployed as Semantic View (by `isf-deployment`)
 4. Referenced by Cortex Agent (by `isf-cortex-agent`)
 
+## Contract
+
+**Inputs:**
+- DATA_MART views/tables (from `isf-data-architecture`)
+- ML schema tables (from `isf-ml-models`) — if ML semantic view
+- `isf-context.md` Cortex features and persona questions (from `isf-spec-curation`)
+
+**Outputs:**
+- `src/database/cortex/semantic_model.yaml` — Semantic model YAML (consumed by `isf-deployment`, `isf-cortex-agent`)
+- Semantic View in Snowflake (consumed by `isf-cortex-agent`)
+
+## Next Skill
+
+After the semantic model is built:
+
+**Continue to** `../isf-cortex-search/SKILL.md` if the plan includes RAG or document search.
+
+Otherwise, **continue to** `../isf-cortex-agent/SKILL.md` to combine Analyst + Search + UDF tools into an agent.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 4b.
+
 ## Companion Skills
 
 | Skill | Relationship |
@@ -233,4 +353,4 @@ src/database/cortex/
 | `isf-cortex-agent` | References this model as an Analyst tool |
 | `isf-cortex-search` | Provides high-cardinality dimension resolution |
 | `isf-deployment` | Deploys the Semantic View to Snowflake |
-| `isf-testing` | Uses verified queries as golden query test cases |
+| `isf-solution-testing` | Uses verified queries as golden query test cases |

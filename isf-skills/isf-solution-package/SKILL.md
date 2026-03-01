@@ -5,6 +5,7 @@ description: >
   LinkedIn blurbs, and video scripts. Use when: preparing solution deliverables,
   creating executive presentations, generating architecture diagrams, or
   packaging a solution for distribution.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Solution Package
@@ -228,6 +229,12 @@ Before delivering:
 | `references/slides.md` | Slide deck structure and design principles | Step 5 |
 | `references/video.md` | Video script structure and specs | Step 6 |
 | `assets/directory_structure.md` | File naming convention and directory layout | Always |
+
+## Pipeline Complete
+
+This is the **final skill** in the ISF Solution Engine pipeline. After packaging is complete, present the full deliverable summary to the user.
+
+If running the full ISF pipeline via `isf-solution-engine`, the pipeline is complete.
 
 ## Companion Skills
 

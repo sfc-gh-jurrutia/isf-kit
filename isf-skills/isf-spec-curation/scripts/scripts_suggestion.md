@@ -104,10 +104,10 @@ JSON References
 **Implementation Sequence:**
 ```
 1. PLAN
-   └── Use isf-solution-plan to generate architecture plan and task list
+   └── Use isf-solution-planning to generate architecture plan and task list
 
 2. DATA LAYER
-   └── Use isf-data-generate for synthetic data from Solution Architecture
+   └── Use isf-data-generation for synthetic data from Solution Architecture
 
 3. AI LAYER
    └── Use isf-cortex-analyst for semantic model from Solution Architecture
@@ -118,13 +118,13 @@ JSON References
    └── Use isf-notebook for ML notebooks from Solution Architecture
 
 5. APP LAYER
-   └── Use isf-react-app for React + FastAPI implementation
+   └── Use isf-solution-react-app for React + FastAPI implementation
 
 6. DEPLOY
-   └── Use isf-deploy for SPCS deployment
+   └── Use isf-deployment for SPCS deployment
 
 7. VALIDATE
-   └── Use isf-testing against Success Metrics
+   └── Use isf-solution-testing against Success Metrics
 
 8. PACKAGE
    └── Use isf-solution-package for presentations and collateral

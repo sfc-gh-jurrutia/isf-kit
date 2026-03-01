@@ -6,6 +6,7 @@ description: >
   datasets committed to the project. Use when: (1) creating synthetic data for a
   solution, (2) populating RAW and ATOMIC layers, (3) engineering hidden discovery
   insights into data, or (4) generating industry-specific realistic datasets.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Data Generation
@@ -259,13 +260,35 @@ Child entity ratios (typical):
 - [ ] manifest.json generated with metadata
 - [ ] Generated files committed to repo (not gitignored)
 
-## Downstream Skills
+## Contract
+
+**Inputs:**
+- Entity YAML files from `isf-data-architecture/references/entities/` (built-in)
+- `isf-context.md` for industry, hidden discovery, data scale (from `isf-spec-curation`)
+- Migration files from `src/database/migrations/` (from `isf-data-architecture`)
+
+**Outputs:**
+- `src/data_engine/output/*.csv` — Seed data files (consumed by `isf-deployment`)
+- `src/data_engine/output/manifest.json` — Generation metadata (consumed by `isf-diagnostics`)
+- Validation queries for hidden discovery (consumed by `isf-solution-testing`)
+
+## Next Skill
+
+After data is generated and validated:
+
+**Continue to** `../isf-cortex-analyst/SKILL.md` to build the semantic model for Cortex Analyst (if the plan includes text-to-SQL).
+
+If Cortex Analyst is not needed, **continue to** `../isf-cortex-search/SKILL.md` (for RAG), `../isf-cortex-agent/SKILL.md` (for agent), or `../isf-solution-react-app/SKILL.md` (for the application layer) — whichever is next per the task list.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 4.
+
+### Downstream Skill Reference
 
 | Output | Consumed By |
 |--------|------------|
-| CSV files in `src/data_engine/output/` | `isf-deploy` (loads via COPY INTO) |
+| CSV files in `src/data_engine/output/` | `isf-deployment` (loads via COPY INTO) |
 | Generation scripts | Developers (regenerate if schema changes) |
-| Validation queries | `isf-testing` (hidden discovery verification) |
+| Validation queries | `isf-solution-testing` (hidden discovery verification) |
 | manifest.json | `isf-diagnostics` (data health checks) |
 
 ## Error Handling

@@ -1,6 +1,42 @@
-version: "1.0"
+version: "1.1"
 type: core
 description: "Shared entities across all industries. Every ISF solution starts here."
+
+domain_config:
+  kpi_definitions:
+    revenue:
+      label: "Revenue"
+      metric: "SUM(AMOUNT)"
+      unit: "currency"
+      time_grain: [daily, weekly, monthly, quarterly]
+    active_customers:
+      label: "Active Customers"
+      metric: "COUNT(DISTINCT CUSTOMER_ID) WHERE STATUS = 'active'"
+      unit: "count"
+      time_grain: [monthly, quarterly]
+    transaction_volume:
+      label: "Transaction Volume"
+      metric: "COUNT(*)"
+      unit: "count"
+      time_grain: [daily, weekly, monthly]
+  time_grains:
+    - name: real_time
+      interval: "< 1 minute"
+      use_when: "Live monitoring, alerts"
+    - name: daily
+      interval: "1 day"
+      use_when: "Operational dashboards, daily reports"
+    - name: weekly
+      interval: "1 week"
+      use_when: "Trend analysis, manager reviews"
+    - name: monthly
+      interval: "1 month"
+      use_when: "Executive reporting, KPI tracking"
+    - name: quarterly
+      interval: "3 months"
+      use_when: "Strategic reviews, board reporting"
+  compliance_labels: []
+  terminology: {}
 
 entities:
   CUSTOMER:

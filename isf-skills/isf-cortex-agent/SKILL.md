@@ -5,6 +5,7 @@ description: >
   Use when: (1) creating multi-tool agents, (2) orchestrating Analyst +
   Search + UDFs, (3) configuring tool_resources, (4) fixing 404 endpoint
   errors, or (5) parsing streaming event responses.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Cortex Agent
@@ -204,7 +205,7 @@ POST /api/v2/databases/{DATABASE}/schemas/{SCHEMA}/agents/{AGENT_NAME}:run
 | `error` | Error with message and code |
 | `done` | End of stream |
 
-For React+FastAPI integration patterns (SSE streaming hook, Zustand state, FastAPI proxy), see `isf-react-app`.
+For React+FastAPI integration patterns (SSE streaming hook, Zustand state, FastAPI proxy), see `isf-solution-react-app`.
 
 ## Grants Required
 
@@ -226,6 +227,93 @@ GRANT USAGE ON FUNCTION {DATABASE}.{SCHEMA}.{UDF_NAME}(STRING) TO ROLE {PROJECT_
 
 -- Agent access for app role
 GRANT USAGE ON AGENT {DATABASE}.{SCHEMA}.{AGENT_NAME} TO ROLE {APP_ROLE};
+```
+
+## Advanced Patterns
+
+### Multi-Tool Agent (2+ Analyst + 2+ Search)
+
+When the solution has separate semantic views (operational data vs ML insights) and multiple search services (domain knowledge vs historical reports), configure the agent with multiple tools of the same type:
+
+```json
+{
+  "tools": [
+    {"tool_spec": {"type": "cortex_analyst_text_to_sql", "name": "OPERATIONAL_DATA"}},
+    {"tool_spec": {"type": "cortex_analyst_text_to_sql", "name": "ML_INSIGHTS"}},
+    {"tool_spec": {"type": "cortex_search", "name": "DOMAIN_KNOWLEDGE"}},
+    {"tool_spec": {"type": "cortex_search", "name": "HISTORICAL_REPORTS"}}
+  ],
+  "tool_resources": {
+    "OPERATIONAL_DATA": {
+      "semantic_view": "{DATABASE}.{DATA_MART}.OPERATIONAL_SV",
+      "execution_environment": {"type": "warehouse", "warehouse": "{WAREHOUSE}"}
+    },
+    "ML_INSIGHTS": {
+      "semantic_view": "{DATABASE}.ML.ML_INSIGHTS_SV",
+      "execution_environment": {"type": "warehouse", "warehouse": "{WAREHOUSE}"}
+    },
+    "DOMAIN_KNOWLEDGE": {
+      "search_service": "{DATABASE}.{SCHEMA}.DOMAIN_KNOWLEDGE_SEARCH",
+      "id_column": "CHUNK_ID", "max_results": 5
+    },
+    "HISTORICAL_REPORTS": {
+      "search_service": "{DATABASE}.{SCHEMA}.REPORTS_SEARCH",
+      "id_column": "REPORT_ID", "max_results": 5
+    }
+  }
+}
+```
+
+Each tool gets a distinct description so the agent can route queries to the right tool.
+
+### Routing Instructions
+
+Add an `orchestration` section to the agent instructions that tells the LLM how to choose between tools. Use the pattern: **intent → tool → when NOT to use**.
+
+```
+"instructions": "You are a {DOMAIN} copilot with access to these tools:\n\n
+TOOL ROUTING:\n
+- OPERATIONAL_DATA: Use for metrics, aggregations, trends, and KPI questions about {domain} operations.\n
+  Example: 'What was the average {metric} last month?'\n
+  Do NOT use for: questions about why something happened, or document lookups.\n\n
+- ML_INSIGHTS: Use for model performance, feature importance, and prediction explanation questions.\n
+  Example: 'What are the top features for the {model_name} model?'\n
+  Do NOT use for: raw operational data queries.\n\n
+- DOMAIN_KNOWLEDGE: Use for procedures, protocols, best practices, and how-to questions.\n
+  Example: 'What is the procedure for handling {event_type}?'\n
+  Do NOT use for: data queries or metrics.\n\n
+- HISTORICAL_REPORTS: Use for specific past events, incidents, and historical context.\n
+  Example: 'What happened at {location} on {date}?'\n
+  Do NOT use for: general procedures or aggregated data.\n\n
+RESPONSE FORMAT:\n
+- Always cite the tool and source used.\n
+- For data queries, include the SQL generated.\n
+- Present tables in markdown format.\n"
+```
+
+### Safety-Priority Patterns
+
+For solutions where certain queries relate to safety-critical decisions (healthcare alerts, equipment failures, compliance violations), add priority routing instructions:
+
+```
+"SAFETY PRIORITY:\n
+When a question involves {SAFETY_TOPIC_A} or {SAFETY_TOPIC_B}:\n
+1. ALWAYS check DOMAIN_KNOWLEDGE first for established procedures\n
+2. Then check HISTORICAL_REPORTS for precedents\n
+3. Only then query OPERATIONAL_DATA for current metrics\n
+4. Include a safety disclaimer: 'This information is AI-generated. Always follow established {DOMAIN} procedures and consult qualified personnel for safety-critical decisions.'\n"
+```
+
+### Confidence Indicators
+
+Instruct the agent to include confidence qualifiers based on data volume and recency:
+
+```
+"CONFIDENCE INDICATORS:\n
+- HIGH: Based on >1000 data points from the last 30 days\n
+- MEDIUM: Based on 100-1000 data points or data older than 30 days\n
+- LOW: Based on <100 data points, inferred, or based on general knowledge\n
+Always state the confidence level when providing quantitative answers.\n"
 ```
 
 ## Best Practices
@@ -268,6 +356,26 @@ Agent DDL is deployed by `isf-deployment` after the data layer and Cortex servic
 | Agent not found | Wrong database/schema in URL | Verify fully qualified path matches CREATE AGENT location |
 | Tool not responding | Underlying service down | Check semantic model validity, search service status |
 
+## Contract
+
+**Inputs:**
+- Semantic model/view (from `isf-cortex-analyst`)
+- Search service(s) (from `isf-cortex-search`)
+- UDFs (from `isf-python-udf`)
+- `isf-context.md` Cortex features section (from `isf-spec-curation`)
+
+**Outputs:**
+- `src/database/cortex/agent.sql` — Agent DDL (consumed by `isf-deployment`)
+- Agent endpoint URL (consumed by `isf-solution-react-app`)
+
+## Next Skill
+
+After the agent is built:
+
+**Continue to** `../isf-solution-react-app/SKILL.md` to build the React + FastAPI frontend with SSE streaming.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 5.
+
 ## Companion Skills
 
 | Skill | Provides |
@@ -275,5 +383,5 @@ Agent DDL is deployed by `isf-deployment` after the data layer and Cortex servic
 | `isf-cortex-analyst` | Semantic model for Analyst tools |
 | `isf-cortex-search` | Search service for Search tools |
 | `isf-python-udf` | UDFs for custom tools |
-| `isf-react-app` | Frontend SSE streaming, Zustand state, FastAPI proxy |
+| `isf-solution-react-app` | Frontend SSE streaming, Zustand state, FastAPI proxy |
 | `isf-deployment` | Deploys agent DDL to Snowflake |

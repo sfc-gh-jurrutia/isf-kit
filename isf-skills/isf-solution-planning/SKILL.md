@@ -6,6 +6,7 @@ description: >
   Use when: (1) starting a new ISF solution project, (2) determining which
   skill to use for a task, (3) planning implementation phases, (4) scaffolding
   a project from spec, or (5) reviewing critical constraints.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Solution Planning
@@ -73,12 +74,12 @@ If the spec is incomplete, direct the user to run `isf-spec-curation` first.
 | **Spec** | `isf-spec-curation` | Curate requirements into isf-context.md |
 | **Plan** | `isf-solution-planning` (this skill) | Architecture, tasks, scaffold |
 | **Style** | `isf-solution-style-guide` | Colors, accessibility, tokens |
-| **Data** | `isf-data-generate` | Synthetic data generation |
+| **Data** | `isf-data-architecture` → `isf-data-generation` | Schema design + synthetic data |
 | **Cortex** | `isf-cortex-agent` / `isf-cortex-analyst` / `isf-cortex-search` | AI features |
-| **App** | `isf-react-app` | React + FastAPI application |
+| **App** | `isf-solution-react-app` | React + FastAPI application (SPCS) |
 | **Notebook** | `isf-notebook` | ML notebooks with GPU support |
-| **Deploy** | `isf-deploy` | SPCS deployment |
-| **Test** | `isf-testing` | Validation and quality gates |
+| **Deploy** | `isf-deployment` | SPCS deployment |
+| **Test** | `isf-solution-testing` | Validation and quality gates |
 | **Package** | `isf-solution-package` | Presentations, blog, video |
 
 ### By Task
@@ -88,15 +89,62 @@ If the spec is incomplete, direct the user to run `isf-spec-curation` first.
 | Curate solution requirements | `isf-spec-curation` |
 | Plan architecture and tasks | `isf-solution-planning` |
 | Database schema (schemachange migrations) | `isf-solution-planning` (scaffold) |
-| Synthetic data with seed=42 | `isf-data-generate` |
+| Synthetic data with seed=42 | `isf-data-generation` |
 | Cortex Agent (multi-tool orchestration) | `isf-cortex-agent` |
 | Semantic model (text-to-SQL) | `isf-cortex-analyst` |
 | RAG / document search | `isf-cortex-search` |
-| React + FastAPI application | `isf-react-app` |
+| React + FastAPI application | `isf-solution-react-app` |
 | ML / DS notebooks | `isf-notebook` |
-| SPCS container deployment | `isf-deploy` |
-| Full test cycle | `isf-testing` |
+| SPCS container deployment | `isf-deployment` |
+| Full test cycle | `isf-solution-testing` |
 | Architecture diagrams, presentations | `isf-solution-package` |
+
+## Solution Archetypes
+
+When planning, match the user's requirements to a known archetype. Each archetype activates a subset of skills and determines the critical path.
+
+| Archetype | Description | Key Skills Activated | Cortex Features |
+|-----------|-------------|---------------------|----------------|
+| **AI Copilot** | Chat-first UI with multi-tool agent, RAG search, analytics | All Cortex skills + React or Streamlit | Agent, Analyst, Search |
+| **Operational Dashboard** | Real-time monitoring with alerts, KPIs, parameter tracking | Data arch, React (command center), deployment | Analyst (optional) |
+| **Predictive Analytics** | ML models with explainability, what-if scenarios | ML models, notebook, data arch, React or Streamlit | Analyst, Agent (optional) |
+| **Data Quality Monitor** | Validation rules, anomaly detection, lineage tracking | Data arch, data gen, testing, deployment | LLM functions (optional) |
+| **Self-Service Analytics** | Semantic model for natural-language SQL, no custom UI | Data arch, Cortex Analyst, deployment | Analyst |
+| **Knowledge Assistant** | Document search with RAG, domain knowledge base | Industry context, Cortex Search, Agent, Streamlit | Search, Agent |
+
+**Record the chosen archetype in `plan.md`** — it determines which skills run and in what order.
+
+### Archetype → Skill Activation
+
+```
+AI Copilot (most skills):
+  data-arch → data-gen → industry-context → cortex-analyst → cortex-search → ml-models → cortex-agent → react-app → deployment
+
+Operational Dashboard (fewer skills):
+  data-arch → data-gen → cortex-analyst (optional) → react-app → deployment
+
+Predictive Analytics:
+  data-arch → data-gen → ml-models → cortex-analyst (ML view) → cortex-agent (optional) → react-app or streamlit → deployment
+
+Knowledge Assistant:
+  data-arch → industry-context → cortex-search → cortex-agent → streamlit → deployment
+```
+
+### Task Parallelism
+
+Within the Cortex phase, several skills are independent and can run in parallel:
+
+```
+                    ┌─── isf-cortex-analyst ───┐
+data-generation ───┤                           ├── isf-cortex-agent
+                    ├─── isf-cortex-search  ───┤
+                    ├─── isf-python-udf     ───┤
+                    └─── isf-ml-models      ───┘
+```
+
+The agent depends on all Cortex services being ready. Everything upstream of this fan-out is sequential; everything downstream of the fan-in (agent → app → deploy) is also sequential.
+
+**Record parallel branches in `tasks.md`** — note which tasks can execute concurrently.
 
 ## Architecture Planning
 
@@ -132,15 +180,15 @@ UI Layer (src/ui/ — React consuming API)
 
 ### Application Type
 
-| Use Case | Choice |
-|----------|--------|
-| Copilot / chat-first UI | React + FastAPI (default) |
-| Complex multi-panel analytics | React + FastAPI |
-| Interactive exploration app | Streamlit in Snowflake (SiS) |
-| ML training / exploration | Snowflake Notebook |
-| GPU / distributed training | Notebook with Container Runtime |
+All ISF solutions use React + FastAPI deployed to SPCS.
 
-React + FastAPI is the default for ISF solutions. SiS is valid for lightweight interactive apps. Both deploy to Snowflake — React via SPCS, SiS natively.
+| Use Case | Choice | ISF Skill |
+|----------|--------|-----------|
+| Copilot / chat-first UI | React + FastAPI | `isf-solution-react-app` |
+| Complex multi-panel analytics | React + FastAPI | `isf-solution-react-app` |
+| Operational dashboard | React + FastAPI | `isf-solution-react-app` |
+| ML training / exploration | Snowflake Notebook | `isf-notebook` |
+| GPU / distributed training | Notebook with Container Runtime | `isf-notebook` |
 
 ## Constraints
 
@@ -215,35 +263,33 @@ specs/{solution}/
   └── Makefile
 ```
 
-## Downstream
+## Contract
 
-After planning, implementation follows the task order. Each task maps to an ISF skill:
+**Inputs:**
+- `specs/{solution}/isf-context.md` — Curated spec (from `isf-spec-curation`)
+
+**Outputs:**
+- `specs/{solution}/plan.md` — Architecture plan with Mermaid diagrams (consumed by all downstream skills)
+- `specs/{solution}/tasks.md` — Ordered task list with skill assignments (consumed by `isf-solution-engine`)
+- Scaffolded project directory (consumed by all build skills)
+
+## Next Skill
+
+After planning is complete and the project is scaffolded:
+
+**Continue to** `../isf-data-architecture/SKILL.md` to design the database schema and generate migrations.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 3.
+
+### Implementation Order
 
 ```
-1. DATA
-   └── isf-data-generate (synthetic data from isf-context data model)
-
-2. DATABASE
-   └── schemachange migrations (from scaffold)
-
-3. CORTEX
-   └── isf-cortex-analyst (semantic model)
-   └── isf-cortex-search (RAG service)
-   └── isf-cortex-agent (multi-tool orchestration)
-
-4. APP
-   └── isf-react-app (React + FastAPI from plan.md UI strategy)
-   └── isf-solution-style-guide (tokens + accessibility)
-
-5. NOTEBOOK (if ML component)
-   └── isf-notebook
-
-6. TEST
-   └── isf-testing (data + API + UI)
-
-7. DEPLOY
-   └── isf-deploy (SPCS)
-
-8. PACKAGE
-   └── isf-solution-package (presentations, blog, video)
+1. DATA ARCHITECTURE → isf-data-architecture (schema design + migrations)
+2. DATA GENERATION  → isf-data-generation (synthetic seed data)
+3. CORTEX           → isf-cortex-analyst + isf-cortex-search + isf-cortex-agent
+4. APP              → isf-solution-react-app + isf-solution-style-guide
+5. NOTEBOOK         → isf-notebook (if ML component)
+6. DEPLOY           → isf-deployment (SPCS)
+7. TEST             → isf-solution-testing
+8. PACKAGE          → isf-solution-package
 ```

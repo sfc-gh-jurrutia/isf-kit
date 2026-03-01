@@ -1,5 +1,5 @@
 ---
-name: isf-solution-spec-curation
+name: isf-spec-curation
 description: >
   Generate ISF Solution Specifications from unstructured business requirements,
   customer conversations, or existing projects. Maps industry pain points to ISF
@@ -105,6 +105,29 @@ If the user cannot answer these, help them by:
 2. Proposing typical personas based on the use case and ISF persona templates
 3. Identifying potential "hidden discoveries" that would demonstrate value
 4. Recommending ISF accelerators and assets for their industry
+
+## Solution Archetype
+
+Before populating the spec sections, identify the solution archetype. This determines which skills activate during planning and which Cortex features are required.
+
+| Archetype | Best For | Cortex Features |
+|-----------|----------|----------------|
+| **AI Copilot** | Chat-first multi-tool agent with analytics + RAG | Agent, Analyst, Search |
+| **Operational Dashboard** | Real-time monitoring, KPIs, alerts | Analyst (optional) |
+| **Predictive Analytics** | ML models, explainability, what-if | Analyst, Agent (optional) |
+| **Data Quality Monitor** | Validation, anomaly detection, lineage | LLM functions (optional) |
+| **Self-Service Analytics** | Natural-language SQL, no custom UI | Analyst |
+| **Knowledge Assistant** | Document search, domain knowledge RAG | Search, Agent |
+
+**Ask the user** (or infer from requirements):
+
+```
+Based on your requirements, this maps to the {ARCHETYPE} pattern.
+This means the solution will use: {activated skills list}.
+Confirm or adjust?
+```
+
+Record the archetype in the spec. `isf-solution-planning` uses it to determine the skill activation path and task parallelism.
 
 ## Spec Sections
 
@@ -380,29 +403,42 @@ Before finalizing a spec, verify each section:
 | No ISF IDs assigned | Map findings to ISF catalog — solutions, use cases, pain points |
 | Missing partner context | Check ISF partner catalog for the industry vertical |
 
-## Downstream Skills
-
-After curating a spec, these skills handle implementation:
-
-| Spec Section | Implementation Skill | Status |
-|-------------|---------------------|--------|
-| Solution Architecture | `isf-solution-plan` | Planned |
-| Data Architecture | `isf-data-generate` | Planned |
-| Cortex Agent | `isf-cortex-agent` | Planned |
-| Cortex Analyst | `isf-cortex-analyst` | Planned |
-| Cortex Search | `isf-cortex-search` | Planned |
-| React Application | `isf-react-app` | Planned |
-| Notebook / ML | `isf-notebook` | Planned |
-| Deployment | `isf-deploy` | Planned |
-| Testing | `isf-testing` | Planned |
-| Solution Packaging | `isf-solution-package` | Planned |
-
 ## Output
 
 - A populated `isf-context.md` following the schema in `references/isf-context.md`
 - All 9 spec sections filled with ISF component IDs and narrative content
 - JSON References block with machine-readable ISF mappings
-- Downstream skills (`data-architecture`, `deployment`, `cortex-agent`, etc.) consume this as their input contract
+
+## Contract
+
+**Inputs:**
+- Unstructured requirements — User-provided text, documents, or repo scan
+
+**Outputs:**
+- `specs/{solution}/isf-context.md` — Structured YAML spec with 9 sections + ISF component IDs (consumed by `isf-solution-planning`)
+
+## Next Skill
+
+After the spec is curated and approved:
+
+**Continue to** `../isf-solution-planning/SKILL.md` to plan the architecture, break down tasks, and scaffold the project directory.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 2.
+
+### Downstream Skill Reference
+
+| Spec Section | Implementation Skill |
+|-------------|---------------------|
+| Solution Architecture | `isf-solution-planning` |
+| Data Architecture | `isf-data-architecture` → `isf-data-generation` |
+| Cortex Agent | `isf-cortex-agent` |
+| Cortex Analyst | `isf-cortex-analyst` |
+| Cortex Search | `isf-cortex-search` |
+| React Application | `isf-solution-react-app` |
+| Notebook / ML | `isf-notebook` |
+| Deployment | `isf-deployment` |
+| Testing | `isf-solution-testing` |
+| Solution Packaging | `isf-solution-package` |
 
 ## References
 

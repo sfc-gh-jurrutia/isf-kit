@@ -6,6 +6,7 @@ description: >
   data quality, documentation, and block-release signals. Use when:
   (1) preparing a solution for publication, (2) auditing compliance,
   or (3) running final validation before handoff.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Pre-Publication Checklist
@@ -114,6 +115,16 @@ If ANY of these are true, the solution **must not be published**:
 | All block-release signals clear + all checks pass | Ship |
 | Any block-release signal true | No ship — fix first |
 | Block-release clear but minor checks fail | Conditional — document exceptions |
+
+## Next Skill
+
+After the pre-publication checklist passes (Ship or Conditional):
+
+**Continue to** `../isf-solution-package/SKILL.md` to create presentation materials and deliverables.
+
+If No Ship, fix identified issues and return to `../isf-solution-testing/SKILL.md` to re-validate.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 8.
 
 ## Companion Skills
 

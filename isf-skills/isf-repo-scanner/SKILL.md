@@ -79,10 +79,14 @@ Takes a GitHub URL or local path, clones the repo, runs `npx repomix` to generat
 |-----------|-----------|-------|
 | package.json with react, vite | React + Vite | Default ISF frontend |
 | requirements.txt with fastapi | FastAPI | Default ISF backend |
-| requirements.txt with streamlit | Streamlit (legacy) | Note: will convert to React |
-| environment.yml with snowflake | Snowflake SiS | Note: will convert to React |
+| requirements.txt with streamlit | Streamlit (legacy) | Will convert to React+FastAPI |
+| environment.yml with snowflake | Snowflake SiS (legacy) | Will convert to React+FastAPI |
 | *.ipynb files | Jupyter notebooks | Notebook component |
 | Dockerfile, spec.yaml | SPCS container | Deployment: SPCS |
+| nginx.conf + supervisord.conf | Multi-process SPCS | Deployment: nginx reverse proxy pattern |
+| Multiple Dockerfiles or docker-compose | Multi-app solution | Multiple SPCS services (copilot, orchestrator) |
+| @xyflow/react in package.json | React Flow DAG | Workflow/pipeline visualization |
+| WebSocket endpoint in FastAPI | Real-time push | Live monitoring or bidirectional messaging |
 
 ### Data Architecture
 
@@ -91,8 +95,10 @@ Takes a GitHub URL or local path, clones the repo, runs `npx repomix` to generat
 | sql/ directory with numbered files | DDL execution order |
 | CREATE TABLE/VIEW statements | Table names, columns, types |
 | Schema names (RAW, ATOMIC, *_MART) | Layer architecture |
+| Schema named ML with explainability tables | ML explainability layer (SHAP, PDP, calibration) |
 | data/ or data/synthetic/ | Seed data patterns |
 | seed=42 or similar | Deterministic generation |
+| notebooks/ with *.ipynb + environment.yml | ML notebooks (check for GPU runtime) |
 
 ### Cortex Features
 
@@ -175,6 +181,14 @@ Recommendations:
 - **Empty repo**: "Repo appears empty or has no analyzable code. Switch to conversational intake?"
 - **Very large repo**: "Repo is large ({size}). Scanning with filters to exclude build artifacts."
 - **Private repo**: "Authentication required. Clone the repo locally first, then provide the local path."
+
+## Next Skill
+
+After the repo analysis is complete:
+
+**Continue to** `../isf-spec-curation/SKILL.md` to transform the analysis into a full ISF Solution Spec.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 1.
 
 ## Companion Skills
 

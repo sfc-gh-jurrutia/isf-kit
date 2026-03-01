@@ -7,6 +7,7 @@ description: >
   schemas, (2) creating data flow from source to consumption, (3) implementing
   CDC or staging patterns, (4) choosing transformation approaches, or
   (5) generating migration DDL from entity definitions.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Data Architecture
@@ -44,13 +45,16 @@ All ISF solutions follow a layered architecture:
 
 ### Layer Summary
 
-| Layer | Schema | Purpose | Required |
-|-------|--------|---------|----------|
-| Landing | `RAW` | External data in original format | Yes |
-| Canonical | `ATOMIC` | Enterprise relational model, normalized | Yes |
-| Processing | `DATA_ENGINEERING`, `DATA_SCIENCE` | Complex intermediate processing | No |
-| Consumption | `{DATA_MART}` (project-named) | Consumer-facing data products | Yes |
-| Cortex | In `src/database/cortex/` | Agent DDL, semantic model, search service | If Cortex features used |
+| Layer | Schema | Also Called | Purpose | Required |
+|-------|--------|------------|---------|----------|
+| Landing | `RAW` | Bronze | External data in original format | Yes |
+| Canonical | `ATOMIC` | Silver | Enterprise relational model, normalized | Yes |
+| Processing | `DATA_ENGINEERING`, `DATA_SCIENCE` | — | Complex intermediate processing | No |
+| ML | `ML` | — | Model explainability (SHAP, PDP, calibration, metrics) | If ML notebooks used |
+| Consumption | `{DATA_MART}` (project-named) | Gold | Consumer-facing data products | Yes |
+| Cortex | In `src/database/cortex/` | — | Agent DDL, semantic model, search service | If Cortex features used |
+
+The ISF naming convention (RAW/ATOMIC/DATA_MART) is preferred for clarity. If the spec or team uses medallion terminology (bronze/silver/gold), map it accordingly.
 
 ### Why Always Include RAW
 
@@ -68,6 +72,7 @@ Even for simple projects:
 | `references/entities/{industry}.yaml` | Industry-specific entities and column extensions | Based on isf_context.industry |
 | `references/data-layer-patterns.md` | DDL patterns for RAW, ATOMIC, DATA_MART layers + SCD2 MERGE | Step 3: Design Layers |
 | `references/transformation-patterns.md` | Decision framework: views vs dynamic tables vs streams | Step 3: Choosing transformation approach |
+| `references/ml-schema-patterns.md` | ML explainability schema (SHAP, PDP, calibration, metrics tables) | When solution includes ML notebooks |
 | `assets/migration_template.sql` | Boilerplate for schemachange migration files | Step 4: Generate Migrations (copied into project) |
 
 ## Core Workflow
@@ -86,15 +91,20 @@ Even for simple projects:
 
 3. DESIGN LAYERS
    └── RAW: Map source_systems to landing tables (VARCHAR types, metadata columns)
+   │   └── If source schema is unknown/variable, use VARIANT flexible landing pattern
    └── ATOMIC: Use entity references for normalized tables (proper types, SCD, audit)
    └── DATA_MART: Design consumption views/tables for persona queries
+   │   └── If Cortex Search needed, include search-prep views (CONCAT → SEARCH_TEXT)
+   └── ML: If spec includes ML notebooks, **Load** `references/ml-schema-patterns.md`
+       └── Generate explainability tables (SHAP, PDP, calibration, metrics)
 
 4. GENERATE MIGRATIONS
    └── V1.0.0__initial_schemas.sql (database, schemas, roles)
    └── V1.1.0__raw_tables.sql (RAW layer)
    └── V1.2.0__atomic_tables.sql (ATOMIC layer)
-   └── V1.3.0__data_mart_views.sql (DATA_MART layer)
+   └── V1.3.0__data_mart_views.sql (DATA_MART layer + search-prep views)
    └── V1.4.0__cortex_objects.sql (if Cortex features)
+   └── V1.5.0__ml_schema.sql (if ML notebooks — from ml-schema-patterns.md)
 
    ⚠️ STOP: Present generated migrations for review before writing files.
 
@@ -135,7 +145,7 @@ For each table in isf-context.data_model.transformation_layers:
 | `financial.yaml` | Financial Services | FSI | ACCOUNT, POSITION, TRADE, PORTFOLIO |
 | `media.yaml` | Media | MED | CONTENT, SESSION, SUBSCRIPTION |
 | `telecom.yaml` | Telecom | TEL | SUBSCRIBER, USAGE_RECORD, NETWORK_EVENT |
-| `energy.yaml` | Energy | MFG | ASSET_READING, OUTAGE, METER |
+| `energy.yaml` | Energy | MFG | ASSET_READING, OUTAGE, METER, WELL, DRILLING_PARAMETER, DRILLING_EVENT, DAILY_DRILLING_REPORT |
 | `public_sector.yaml` | Public Sector | PUB | CASE, CONSTITUENT, SERVICE_REQUEST |
 
 If a spec needs entities not in the references, the LLM generates them following the same conventions (types, metadata columns, naming).
@@ -235,6 +245,9 @@ Migrations go in `src/database/migrations/` per the ISF project structure.
 - [ ] Lineage traceable from RAW through DATA_MART
 - [ ] Migration files follow schemachange versioning
 - [ ] Cortex objects in `src/database/cortex/` if Cortex features used
+- [ ] Search-prep views created in DATA_MART if Cortex Search is in spec
+- [ ] ML schema generated from `references/ml-schema-patterns.md` if notebooks in spec
+- [ ] VARIANT landing tables used for sources with unknown/wide schemas
 
 ## Entity Contribution
 
@@ -256,11 +269,30 @@ Save to references/entities/{industry}.yaml? [Yes] [New file] [Skip]
 
 **Planned (not yet implemented)**: Automated contribution back to the `isf-kit` repo via feature branch and PR. This requires git automation, branch naming conventions, and a review process — will be designed separately.
 
-## Downstream Skills
+## Contract
+
+**Inputs:**
+- `isf-context.md` architecture.data_model section (from `isf-spec-curation`)
+- Entity YAML references from `references/entities/` (built-in)
+
+**Outputs:**
+- `src/database/migrations/V1.*.sql` — schemachange migration files (consumed by `isf-deployment`)
+- `src/database/cortex/*.sql` — Cortex object DDL stubs (consumed by `isf-cortex-*` skills)
+- Entity definitions — Schema for synthetic data (consumed by `isf-data-generation`)
+
+## Next Skill
+
+After migrations are generated and reviewed:
+
+**Continue to** `../isf-data-generation/SKILL.md` to generate synthetic seed data from the entity definitions.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 3b.
+
+### Downstream Skill Reference
 
 | Output | Consumed By |
 |--------|------------|
-| Migration files | `isf-deploy` (runs schemachange) |
-| Entity definitions | `isf-data-generate` (creates synthetic data matching schema) |
+| Migration files | `isf-deployment` (runs schemachange) |
+| Entity definitions | `isf-data-generation` (creates synthetic data matching schema) |
 | Cortex objects | `isf-cortex-agent`, `isf-cortex-analyst`, `isf-cortex-search` |
-| DATA_MART views | `isf-react-app` (API queries these for frontend) |
+| DATA_MART views | `isf-solution-react-app` (API queries these for frontend) |

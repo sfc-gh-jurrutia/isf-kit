@@ -6,6 +6,7 @@ description: >
   (3) implementing PyTorch distributed training, (4) deploying GPU-enabled
   models, (5) fixing cell naming conflicts, (6) troubleshooting compute
   pool full errors, or (7) setting up dark theme visualizations.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Notebook Development
@@ -172,8 +173,17 @@ notebooks/
 | File | Purpose | When Loaded |
 |------|---------|-------------|
 | `references/gpu.md` | GPU compute pools, distributed training, CUDA config | When using GPU notebooks |
+| `references/ml-patterns.md` | SHAP, PDP, calibration curve patterns for Snowpark ML | When adding ML explainability to notebooks |
 | `assets/environment.yml` | Template conda environment file | When scaffolding notebooks |
 | `assets/notebook_deploy.sh` | Deployment script for notebook creation | When deploying |
+
+## Next Skill
+
+After notebooks are built:
+
+**Continue to** `../isf-deployment/SKILL.md` to deploy the full solution (migrations, seed data, app, notebooks) to SPCS.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 6.
 
 ## Companion Skills
 

@@ -1,6 +1,6 @@
 # ISF Skills — Comprehensive Workflow Status
 
-Last updated: 2026-02-24
+Last updated: 2026-02-28
 
 ## Workflow Overview
 
@@ -24,6 +24,8 @@ flowchart TD
   end
 
   subgraph build [Build Layer]
+    IC[isf-industry-context]
+    ML[isf-ml-models]
     RA[isf-solution-react-app]
     CA[isf-cortex-agent]
     CS[isf-cortex-search]
@@ -60,6 +62,8 @@ flowchart TD
   DG -->|"seed data"| DP
   SP -->|"UI strategy"| RA
   CA --> DP
+  IC -->|"domain docs"| CS
+  ML -->|"ML schema + models"| CA
   CS --> CA
   CL --> CA
   PU --> CA
@@ -113,7 +117,7 @@ The user provides requirements through one of three paths:
 | `isf-cortex-search` | Documents/text | `src/database/cortex/search_service.sql` |
 | `isf-python-udf` | Business logic requirements | `src/database/functions/*.sql` |
 | `isf-cortex-agent` | Analyst + Search + UDFs | `src/database/cortex/agent.sql` |
-| `isf-solution-react-app` | `plan.md` UI strategy | `src/ui/` + `api/` |
+| `isf-solution-react-app` | `plan.md` UI strategy (React path) | `src/ui/` + `api/` |
 | `isf-notebook` | ML requirements | `notebooks/*.ipynb` |
 
 **Key artifacts**: Working application code, Cortex objects, and notebooks.
@@ -148,29 +152,31 @@ The user provides requirements through one of three paths:
 
 ## Complete Skill Inventory
 
-### 18 Skills
+### 21 Skills
 
-| # | Skill | Lines | Files | Category |
-|---|-------|-------|-------|----------|
-| 1 | `isf-spec-curation` | 409 | 3 | Input |
-| 2 | `isf-repo-scanner` | 184 | 1 | Input |
-| 3 | `isf-solution-planning` | 249 | 2 | Planning |
-| 4 | `isf-solution-style-guide` | 90 | 3 | Planning (cross-cutting) |
-| 5 | `isf-data-architecture` | 266 | 14 | Architecture |
-| 6 | `isf-data-generation` | 277 | 10 | Architecture |
-| 7 | `isf-cortex-agent` | 279 | 2 | Build (Cortex) |
-| 8 | `isf-cortex-analyst` | 236 | 2 | Build (Cortex) |
-| 9 | `isf-cortex-search` | 231 | 2 | Build (Cortex) |
-| 10 | `isf-python-udf` | 187 | 1 | Build (Cortex) |
-| 11 | `isf-solution-react-app` | 201 | 31 | Build (App) |
-| 12 | `isf-notebook` | 185 | 5 | Build (ML) |
-| 13 | `isf-deployment` | 300 | 5 | Deploy |
-| 14 | `isf-solution-testing` | 183 | 5 | Quality |
-| 15 | `isf-solution-reflection-persona` | 133 | 1 | Quality |
-| 16 | `isf-solution-prepublication-checklist` | 124 | 1 | Quality |
-| 17 | `isf-solution-package` | 237 | 9 | Output |
-| 18 | `isf-diagnostics` | 178 | 1 | Support |
-| | **Total** | **4,148** | **98** | |
+| # | Skill | Category | Chains To |
+|---|-------|----------|-----------|
+| 0 | `isf-solution-engine` | Orchestrator | All skills (entry point) |
+| 1 | `isf-spec-curation` | Input | → `isf-solution-planning` |
+| 2 | `isf-repo-scanner` | Input | → `isf-spec-curation` |
+| 3 | `isf-solution-planning` | Planning | → `isf-data-architecture` |
+| 4 | `isf-solution-style-guide` | Planning (cross-cutting) | (loaded by app skills) |
+| 5 | `isf-data-architecture` | Architecture | → `isf-data-generation` |
+| 6 | `isf-data-generation` | Architecture | → Cortex skills (parallel) |
+| 7 | `isf-industry-context` | Architecture (RAG) | → `isf-cortex-search` |
+| 8 | `isf-cortex-analyst` | Build (Cortex) | → `isf-cortex-agent` (parallel) |
+| 9 | `isf-cortex-search` | Build (Cortex) | → `isf-cortex-agent` (parallel) |
+| 10 | `isf-python-udf` | Build (Cortex) | → `isf-cortex-agent` (parallel) |
+| 11 | `isf-ml-models` | Build (ML) | → `isf-cortex-agent` (parallel) |
+| 12 | `isf-cortex-agent` | Build (Cortex) | → `isf-solution-react-app` |
+| 13 | `isf-solution-react-app` | Build (App) | → `isf-deployment` |
+| 14 | `isf-notebook` | Build (ML infra) | → `isf-deployment` |
+| 15 | `isf-deployment` | Deploy | → `isf-solution-testing` |
+| 16 | `isf-solution-testing` | Quality | → `isf-solution-reflection-persona` |
+| 17 | `isf-solution-reflection-persona` | Quality | → `isf-solution-prepublication-checklist` |
+| 18 | `isf-solution-prepublication-checklist` | Quality | → `isf-solution-package` |
+| 19 | `isf-solution-package` | Output | (pipeline complete) |
+| 20 | `isf-diagnostics` | Support | (any phase) |
 
 ## Key Artifacts Across the Pipeline
 
@@ -218,7 +224,7 @@ specs/{solution}/
 | Decision | Rationale |
 |----------|-----------|
 | `isf-context.md` is the contract | Structured YAML with T1/T2/T3 tiers replaces flat markdown specs |
-| React+FastAPI is default frontend | Consistent pipeline, SPCS deployment, eliminates framework mismatch |
+| React+FastAPI is the only frontend | Consistent pipeline, SPCS deployment, SSE streaming, eliminates framework mismatch |
 | YAML entity files replace CSVs | 34MB → ~2,000 lines; fits in LLM context; includes generation rules |
 | No Snowflake dependency for skills | YAML is source of truth; works offline |
 | schemachange for migrations | Versioned DDL, CI/CD compatible |

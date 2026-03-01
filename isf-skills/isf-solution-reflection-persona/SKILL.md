@@ -5,6 +5,7 @@ description: >
   (1) auditing persona coverage from isf-context, (2) mapping STAR journeys,
   (3) identifying content gaps, (4) verifying tone matches persona level,
   or (5) reviewing UI against persona needs before publication.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Persona Reflection
@@ -122,6 +123,14 @@ For each persona, verify:
 - [ ] Actions update results within the same view
 - [ ] Tone matches persona level
 - [ ] Hidden discovery is accessible through at least one persona's journey
+
+## Next Skill
+
+After the persona reflection is complete:
+
+**Continue to** `../isf-solution-prepublication-checklist/SKILL.md` for the final Ship / No Ship gate.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 7c.
 
 ## Companion Skills
 

@@ -5,6 +5,7 @@ description: >
   library, Cortex Agent integration, SSE streaming, production rules, and
   accessibility patterns. Use when: creating React dashboards, building copilot
   UIs, implementing Cortex chat interfaces, or auditing UI accessibility.
+parent_skill: isf-solution-engine
 ---
 
 # ISF React App
@@ -35,6 +36,8 @@ Generates the React+FastAPI application code for an ISF solution:
 | `references/copilot-learnings.md` | Architecture patterns from successful copilot implementations | Always |
 | `references/cortex-chat.md` | Cortex Agent chat integration patterns | When building copilot UI |
 | `references/workflow.md` | Multi-step workflow patterns | When building guided experiences |
+| `references/websocket-pattern.md` | FastAPI WebSocket + React hook for real-time push | When building live dashboards or monitoring UIs |
+| `references/reactflow-dag.md` | React Flow DAG visualization with custom nodes | When building workflow/pipeline/lineage visualizations |
 | `rules/*.md` | 13 production rules (a11y, performance, Snowflake-specific) | During code review |
 
 ## Component Library (v2.1)
@@ -179,6 +182,138 @@ api/                             # FastAPI backend
    └── No CSP violations in browser console
 ```
 
+## Advanced Patterns
+
+### Multi-Panel Command Center Layout
+
+For copilot apps that combine real-time data, AI chat, and contextual information, use a three-panel layout:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Header: Agent status indicators, entity selector               │
+├──────────────┬───────────────────────┬──────────────────────────┤
+│  LEFT PANEL  │    CENTER PANEL       │    RIGHT PANEL           │
+│  (280px)     │    (flex-1)           │    (360px)               │
+│              │                       │                          │
+│  Metric      │    Chat Component     │    Context Panel         │
+│  Gauges      │    (useCortexAgent)   │    (query results,       │
+│              │                       │     related docs,        │
+│  Alert       │                       │     ML insights)         │
+│  Cards       │                       │                          │
+│              │                       │                          │
+│  Real-time   │                       │    Updated by            │
+│  Parameters  │                       │    onContextUpdate()     │
+└──────────────┴───────────────────────┴──────────────────────────┘
+```
+
+The center chat component exposes an `onContextUpdate` callback that pushes agent-derived context (SQL results, search matches) to the right panel.
+
+### WebSocket Real-Time Pattern
+
+For streaming live data (sensor readings, status updates, alerts):
+
+**Backend (FastAPI):**
+
+```python
+from fastapi import WebSocket
+from typing import Dict, List
+
+class ConnectionManager:
+    def __init__(self):
+        self.connections: Dict[str, List[WebSocket]] = {}
+
+    async def connect(self, entity_id: str, ws: WebSocket):
+        await ws.accept()
+        self.connections.setdefault(entity_id, []).append(ws)
+
+    async def broadcast(self, entity_id: str, data: dict):
+        for ws in self.connections.get(entity_id, []):
+            await ws.send_json(data)
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/realtime/{entity_id}")
+async def ws_endpoint(websocket: WebSocket, entity_id: str):
+    await manager.connect(entity_id, websocket)
+    try:
+        while True:
+            data = await fetch_latest_metrics(entity_id)
+            await manager.broadcast(entity_id, data)
+            await asyncio.sleep(5)
+    except WebSocketDisconnect:
+        manager.connections[entity_id].remove(websocket)
+```
+
+**Frontend hook:**
+
+```typescript
+function useWebSocket(url: string) {
+  const [data, setData] = useState(null)
+  useEffect(() => {
+    const ws = new WebSocket(url)
+    ws.onmessage = (e) => setData(JSON.parse(e.data))
+    ws.onclose = () => setTimeout(() => /* reconnect */, 3000)
+    return () => ws.close()
+  }, [url])
+  return data
+}
+```
+
+### Domain Visualization Components
+
+Reusable patterns for common copilot UI elements:
+
+**Metric Gauge** — Shows current value with optimal range and trend indicator:
+
+```typescript
+interface GaugeProps {
+  label: string
+  value: number
+  unit: string
+  min: number
+  max: number
+  optimalLow?: number
+  optimalHigh?: number
+  trend?: 'up' | 'down' | 'stable'
+}
+```
+
+**Alert Card** — Proactive warning with severity and recommendation:
+
+```typescript
+interface AlertProps {
+  severity: 'info' | 'warning' | 'danger'
+  title: string
+  message: string
+  recommendation?: string
+  timestamp: string
+}
+```
+
+**AI Thinking Indicator** — Multi-stage animation showing agent processing:
+
+```typescript
+const stages = ['Classifying intent...', 'Searching knowledge...', 'Analyzing data...', 'Generating response...']
+```
+
+### Simulated Streaming
+
+When the backend returns a complete response (not true SSE), simulate word-by-word streaming for better UX:
+
+```typescript
+async function simulateStreaming(fullText: string, onUpdate: (text: string) => void) {
+  const words = fullText.split(' ')
+  let displayed = ''
+  for (const word of words) {
+    displayed += (displayed ? ' ' : '') + word
+    onUpdate(displayed)
+    await new Promise(r => setTimeout(r, 15))
+  }
+}
+```
+
+Use this when the `/api/chat` endpoint returns JSON with a complete `response` field rather than streaming SSE events.
+
 ## Best Practices
 
 | Practice | Recommendation |
@@ -189,6 +324,18 @@ api/                             # FastAPI backend
 | Markdown | react-markdown with prose-invert for dark theme |
 | Error boundaries | Wrap each page section independently |
 | Loading states | Skeleton loaders matching final layout |
+| Real-time data | WebSocket for live metrics, SWR polling for slower updates |
+| Chat animation | Simulated streaming (15ms/word) when not using true SSE |
+
+## Next Skill
+
+After the application is built:
+
+**Continue to** `../isf-deployment/SKILL.md` to deploy the full solution (migrations, seed data, app) to SPCS.
+
+If the plan includes ML notebooks, **continue to** `../isf-notebook/SKILL.md` first.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 6.
 
 ## Companion Skills
 

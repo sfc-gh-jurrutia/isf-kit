@@ -1,9 +1,60 @@
-version: "1.0"
+version: "1.1"
 type: industry
 extends: _core
 industry: energy
 isf_code: MFG
 description: "Energy & Utilities — power, oil & gas, water, renewables"
+
+domain_config:
+  kpi_definitions:
+    equipment_uptime:
+      label: "Equipment Uptime"
+      metric: "AVG(CASE WHEN STATUS = 'OPERATIONAL' THEN 1 ELSE 0 END) * 100"
+      unit: "percent"
+      time_grain: [daily, monthly]
+    mean_time_between_failures:
+      label: "MTBF"
+      metric: "AVG(HOURS_SINCE_LAST_FAILURE)"
+      unit: "hours"
+      time_grain: [monthly, quarterly]
+    non_productive_time:
+      label: "Non-Productive Time (NPT)"
+      metric: "SUM(DOWNTIME_HOURS)"
+      unit: "hours"
+      time_grain: [daily, weekly]
+    rate_of_penetration:
+      label: "Rate of Penetration (ROP)"
+      metric: "AVG(ROP)"
+      unit: "m/hr or ft/hr"
+      time_grain: [real_time, daily]
+    incident_rate:
+      label: "Incident Rate"
+      metric: "COUNT_IF(HAS_INCIDENT) / COUNT(*) * 100"
+      unit: "percent"
+      time_grain: [daily, weekly, monthly]
+  time_grains:
+    - name: real_time
+      interval: "seconds"
+      use_when: "Sensor monitoring, anomaly detection, safety alerts"
+    - name: daily
+      interval: "1 day"
+      use_when: "Daily reports, operational summaries"
+  compliance_labels:
+    - OSHA_SAFETY
+    - ENVIRONMENTAL_IMPACT
+    - WELL_CONTROL
+    - EQUIPMENT_CERTIFICATION
+  terminology:
+    ROP: "Rate of Penetration — speed at which the drill bit advances (m/hr or ft/hr)"
+    WOB: "Weight on Bit — downward force applied to the drill bit (kkgf or klbs)"
+    RPM: "Rotary speed of the drill string (revolutions per minute)"
+    SPP: "Standpipe Pressure — pump pressure at surface (kPa or psi)"
+    NPT: "Non-Productive Time — hours lost to unplanned events"
+    MTBF: "Mean Time Between Failures"
+    MSE: "Mechanical Specific Energy — energy to remove a unit volume of rock"
+    DDR: "Daily Drilling Report — daily operational summary"
+    SCD: "Slowly Changing Dimension — historical tracking pattern"
+    SHAP: "SHapley Additive exPlanations — ML feature importance method"
 
 entities:
   ASSET:
@@ -147,3 +198,179 @@ entities:
       PEAK_DEMAND_KW:
         type: NUMBER(10,2)
         description: "Peak demand recorded"
+
+  # --- Oil & Gas / Drilling entities ---
+
+  WELL:
+    description: "Oil/gas well with location, trajectory, and operational status"
+    schema: ATOMIC
+    key_columns: [WELL_ID]
+    columns:
+      WELL_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      WELL_NAME:
+        type: VARCHAR(100)
+        description: "Well identifier (e.g., 15/9-F-5)"
+      WELL_TYPE:
+        type: VARCHAR(50)
+        description: "Exploration, Development, Injection, Observation"
+      FIELD_NAME:
+        type: VARCHAR(100)
+        description: "Oil/gas field name"
+      SPUD_DATE:
+        type: DATE
+        description: "Date drilling commenced"
+      COMPLETION_DATE:
+        type: DATE
+        description: "Date well completed"
+      TOTAL_DEPTH_M:
+        type: NUMBER(8,2)
+        description: "Total measured depth in meters"
+      STATUS:
+        type: VARCHAR(30)
+        description: "Drilling, Producing, Suspended, P&A"
+      LATITUDE:
+        type: NUMBER(10,7)
+        description: "Surface location latitude"
+      LONGITUDE:
+        type: NUMBER(10,7)
+        description: "Surface location longitude"
+
+  DRILLING_PARAMETER:
+    description: "Time-series drilling parameter readings (WOB, RPM, torque, etc.)"
+    schema: ATOMIC
+    key_columns: [PARAMETER_ID]
+    relationships:
+      - entity: WELL
+        type: many_to_one
+        fk: WELL_ID
+    columns:
+      PARAMETER_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      WELL_ID:
+        type: VARCHAR(36)
+        description: "FK to WELL"
+        constraint: FOREIGN KEY
+      DEPTH_M:
+        type: NUMBER(8,2)
+        description: "Measured depth at reading"
+      READING_TIMESTAMP:
+        type: TIMESTAMP_NTZ
+        description: "When parameter was recorded"
+        generation: random_date
+      WOB_KKGF:
+        type: NUMBER(8,2)
+        description: "Weight on bit (thousands kgf)"
+      RPM:
+        type: NUMBER(6,1)
+        description: "Rotary speed"
+      TORQUE_KNM:
+        type: NUMBER(8,2)
+        description: "Torque in kilo-Newton-meters"
+      MUD_FLOW_IN_LPM:
+        type: NUMBER(8,1)
+        description: "Mud flow rate in liters per minute"
+      STANDPIPE_PRESSURE_KPA:
+        type: NUMBER(10,1)
+        description: "Standpipe pressure"
+      MUD_WEIGHT_SG:
+        type: NUMBER(4,2)
+        description: "Mud weight specific gravity"
+      ROP_M_HR:
+        type: NUMBER(8,2)
+        description: "Rate of penetration meters/hour"
+
+  DRILLING_EVENT:
+    description: "Discrete drilling events: stuck pipe, kick, lost circulation, etc."
+    schema: ATOMIC
+    key_columns: [EVENT_ID]
+    relationships:
+      - entity: WELL
+        type: many_to_one
+        fk: WELL_ID
+    columns:
+      EVENT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      WELL_ID:
+        type: VARCHAR(36)
+        description: "FK to WELL"
+        constraint: FOREIGN KEY
+      EVENT_TYPE:
+        type: VARCHAR(50)
+        description: "Stuck Pipe, Kick, Lost Circulation, BHA Failure, Washout"
+      SEVERITY:
+        type: VARCHAR(20)
+        description: "Low, Medium, High, Critical"
+      DEPTH_M:
+        type: NUMBER(8,2)
+        description: "Depth at event"
+      START_TIME:
+        type: TIMESTAMP_NTZ
+        description: "Event start"
+      END_TIME:
+        type: TIMESTAMP_NTZ
+        description: "Event resolved"
+      DURATION_HOURS:
+        type: NUMBER(6,1)
+        description: "Non-productive time"
+      NPT_COST_USD:
+        type: NUMBER(12,2)
+        description: "Estimated cost of non-productive time"
+      DESCRIPTION:
+        type: VARCHAR(2000)
+        description: "Free text event description"
+
+  DAILY_DRILLING_REPORT:
+    description: "Daily summary report per well (DDR)"
+    schema: ATOMIC
+    key_columns: [REPORT_ID]
+    relationships:
+      - entity: WELL
+        type: many_to_one
+        fk: WELL_ID
+    columns:
+      REPORT_ID:
+        type: VARCHAR(36)
+        description: "UUID primary key"
+        constraint: PRIMARY KEY
+        generation: uuid
+      WELL_ID:
+        type: VARCHAR(36)
+        description: "FK to WELL"
+        constraint: FOREIGN KEY
+      REPORT_DATE:
+        type: DATE
+        description: "Date of report"
+      DEPTH_START_M:
+        type: NUMBER(8,2)
+        description: "Depth at start of day"
+      DEPTH_END_M:
+        type: NUMBER(8,2)
+        description: "Depth at end of day"
+      FOOTAGE_DRILLED_M:
+        type: NUMBER(6,2)
+        description: "Meters drilled this period"
+      OPERATIONS_SUMMARY:
+        type: VARCHAR(4000)
+        description: "Free text operations narrative"
+      MUD_WEIGHT_IN_SG:
+        type: NUMBER(4,2)
+        description: "Mud weight going in"
+      MUD_WEIGHT_OUT_SG:
+        type: NUMBER(4,2)
+        description: "Mud weight coming out"
+      BIT_NUMBER:
+        type: VARCHAR(20)
+        description: "Bit identifier in use"
+      FORMATION:
+        type: VARCHAR(100)
+        description: "Current geological formation"

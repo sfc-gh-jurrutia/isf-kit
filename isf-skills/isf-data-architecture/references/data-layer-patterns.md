@@ -74,6 +74,47 @@ CREATE TABLE RAW.API_WEATHER_RESPONSES (
 - Preserve full response for debugging and reprocessing
 - Track HTTP status for error handling
 
+### Pattern 4: Flexible Schema Landing (VARIANT)
+
+For source data with unknown, variable, or very wide schemas (hundreds of columns, evolving formats). Store the entire row as VARIANT and extract columns downstream.
+
+```sql
+CREATE TABLE RAW.SOURCE_READINGS_FLEX (
+    LOAD_TIMESTAMP TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    SOURCE_FILE VARCHAR(500),
+    SOURCE_NAME VARCHAR(200),
+    ROW_NUMBER NUMBER,
+    RAW_DATA VARIANT,                       -- Entire row as JSON/VARIANT
+    READING_TIMESTAMP TIMESTAMP_NTZ         -- Extract one key timestamp for partitioning
+);
+```
+
+Extract typed columns in the ATOMIC layer:
+
+```sql
+CREATE OR REPLACE VIEW ATOMIC.SOURCE_READINGS AS
+SELECT
+    RAW_DATA:entity_id::VARCHAR AS ENTITY_ID,
+    RAW_DATA:metric_a::FLOAT AS METRIC_A,
+    RAW_DATA:metric_b::FLOAT AS METRIC_B,
+    RAW_DATA:status::VARCHAR AS STATUS,
+    READING_TIMESTAMP,
+    SOURCE_NAME,
+    LOAD_TIMESTAMP
+FROM RAW.SOURCE_READINGS_FLEX
+WHERE RAW_DATA:entity_id IS NOT NULL;
+```
+
+**When to use:**
+- Source has 100+ columns and you only need a subset
+- Schema evolves frequently (new columns added by source)
+- Multiple source formats land in the same table
+- Initial discovery phase — extract columns as you learn the data
+
+**When NOT to use:**
+- Schema is stable and well-known (use explicit columns instead)
+- Performance-critical queries (VARIANT extraction is slower than typed columns)
+
 ### RAW Naming Conventions
 
 | Object Type | Convention | Example |
@@ -279,6 +320,59 @@ JOIN ATOMIC.PRODUCTION_RUN_PARAMETER prp ON pr.PRODUCTION_RUN_ID = prp.PRODUCTIO
 WHERE pr.PRODUCTION_STATUS = 'COMPLETED';
 ```
 
+### Pattern 4: Search-Prep Views for Cortex Search
+
+When the solution includes Cortex Search, create views that concatenate structured data into text chunks suitable for search indexing. These views live in the DATA_MART schema and are consumed by `isf-cortex-search` to create CORTEX SEARCH SERVICE objects.
+
+```sql
+CREATE OR REPLACE VIEW {DATA_MART}.{ENTITY}_SEARCH_VIEW AS
+SELECT
+    ENTITY_ID,
+    ENTITY_NAME,
+    ENTITY_DATE,
+    CONCAT(
+        'Entity: ', ENTITY_NAME,
+        '\nDate: ', TO_CHAR(ENTITY_DATE, 'YYYY-MM-DD'),
+        '\nCategory: ', COALESCE(CATEGORY, 'N/A'),
+        '\nSummary: ', COALESCE(DESCRIPTION, ''),
+        '\nDetails: ', COALESCE(DETAIL_TEXT, '')
+    ) AS SEARCH_TEXT,
+    CATEGORY AS DOCUMENT_TYPE
+FROM ATOMIC.{ENTITY}
+WHERE DESCRIPTION IS NOT NULL;
+```
+
+**Key Points:**
+- The `SEARCH_TEXT` column is what Cortex Search indexes — design it for retrieval quality
+- Include enough context in each chunk for the LLM to answer questions without needing the original row
+- Add filterable columns (`DOCUMENT_TYPE`, `ENTITY_DATE`) that map to Cortex Search ATTRIBUTES
+- Filter out NULL/empty rows that would produce low-quality search results
+
+**Synthetic Document Generation:**
+
+For richer search results, generate narrative text from structured data:
+
+```sql
+CREATE OR REPLACE VIEW {DATA_MART}.{ENTITY}_NARRATIVES AS
+SELECT
+    ENTITY_ID,
+    ENTITY_DATE,
+    CONCAT(
+        'Report for ', ENTITY_NAME, ' on ', TO_CHAR(ENTITY_DATE, 'YYYY-MM-DD'), '.\n\n',
+        'Performance: ', METRIC_A_NAME, ' was ', ROUND(METRIC_A, 2), ' ',
+        CASE WHEN METRIC_A > THRESHOLD THEN '(above target)' ELSE '(below target)' END, '. ',
+        METRIC_B_NAME, ' was ', ROUND(METRIC_B, 2), '.\n\n',
+        CASE WHEN HAS_ANOMALY THEN
+            'ALERT: Anomaly detected — ' || ANOMALY_DESCRIPTION || '.'
+        ELSE 'No anomalies detected.' END
+    ) AS SEARCH_TEXT,
+    'performance_report' AS DOCUMENT_TYPE,
+    ENTITY_NAME
+FROM {DATA_MART}.{ENTITY}_SUMMARY;
+```
+
+This pattern converts structured metrics into natural-language documents that Cortex Search can index, enabling questions like "What happened with {entity} last week?" to return meaningful narrative answers rather than raw data.
+
 ---
 
 ## Optional Intermediate Schemas
@@ -290,6 +384,9 @@ WHERE pr.PRODUCTION_STATUS = 'COMPLETED';
 | `DATA_ENGINEERING` | Complex ETL staging | Intermediate staging tables, deduplication |
 | `DATA_SCIENCE` | Experimentation | Exploration tables, sample datasets |
 | `ML_PROCESSING` | ML pipeline artifacts | Training datasets, model outputs |
+| `ML` | ML explainability artifacts | SHAP importance, PDP curves, calibration, metrics |
+
+For the `ML` schema with full DDL, see `references/ml-schema-patterns.md`.
 
 ### ML Processing Example
 

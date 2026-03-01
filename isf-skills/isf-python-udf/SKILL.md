@@ -6,6 +6,7 @@ description: >
   files in UDFs, (3) optimizing UDF performance with caching,
   (4) creating table functions for data processing, or (5) building
   custom tools for Cortex Agents.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Python UDFs
@@ -176,6 +177,14 @@ src/database/
 └── cortex/
     └── agent.sql            # References UDFs as custom tools
 ```
+
+## Next Skill
+
+After UDFs are built:
+
+**Continue to** `../isf-cortex-agent/SKILL.md` to register these UDFs as custom tools in the Cortex Agent.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 4d.
 
 ## Companion Skills
 

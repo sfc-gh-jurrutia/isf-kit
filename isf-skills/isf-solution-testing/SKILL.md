@@ -5,6 +5,7 @@ description: >
   React UI, Cortex services, SPCS health, and hidden discovery verification.
   Use when: (1) running full test cycles, (2) validating deployments,
   (3) troubleshooting failures, or (4) preparing for pre-publication review.
+parent_skill: isf-solution-engine
 ---
 
 # ISF Solution Testing
@@ -167,12 +168,15 @@ Run the validation query from `isf-data-generation` to confirm the discovery is 
 - [ ] FastAPI tests pass (`pytest`)
 - [ ] SPCS service is READY (if deployed)
 
-## Downstream Skills
+## Next Skill
 
-| After Testing | Next Skill |
-|--------------|------------|
-| All layers pass | `isf-solution-prepublication-checklist` |
-| Failures found | `isf-diagnostics` for troubleshooting |
+After all test layers pass:
+
+**Continue to** `../isf-solution-reflection-persona/SKILL.md` to audit STAR journeys against the personas defined in `isf-context.md`.
+
+If tests fail, **Load** `../isf-diagnostics/SKILL.md` for troubleshooting. After fixing, re-run tests.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 7b.
 
 ## References
 
