@@ -178,6 +178,24 @@ src/database/
     └── agent.sql            # References UDFs as custom tools
 ```
 
+## Stopping Points
+
+- **⚠️ MANDATORY CHECKPOINT**: Before deploying UDFs to Snowflake — present the UDF definitions (name, parameters, return type, body) for user review
+
+## Output
+
+- UDF SQL files in `src/database/cortex/` or `src/database/functions/`
+- UDF registration statements ready for schemachange migration
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| UDF deployment fails with "insufficient privileges" | Verify the role has CREATE FUNCTION on the target schema |
+| Python UDF fails with import error | Add the dependency to the UDF's PACKAGES clause |
+| UDF returns NULL unexpectedly | Check for None handling in the Python body; Snowflake NULLs map to Python None |
+| Performance is slow | Consider vectorized UDFs (`VECTORIZED` handler) for batch processing |
+
 ## Next Skill
 
 After UDFs are built:

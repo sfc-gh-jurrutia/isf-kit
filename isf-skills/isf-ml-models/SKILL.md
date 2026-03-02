@@ -357,6 +357,17 @@ done
 - ML schema populated: GLOBAL_FEATURE_IMPORTANCE, MODEL_METRICS, etc. (consumed by `isf-cortex-analyst`)
 - Models in Snowflake Model Registry (consumed by `isf-python-udf`, `isf-cortex-agent`)
 
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Training fails with "insufficient data" | Verify the training view has enough rows (minimum ~100 for most models); check for NULL filtering reducing row count |
+| Model Registry deployment error | Ensure the role has CREATE MODEL REGISTRY privileges; check that the model name doesn't conflict with existing objects |
+| SHAP computation fails on large datasets | Sample the explanation dataset (1000-5000 rows); use `approximate=True` if available |
+| Feature engineering errors | Check for datetime columns not properly converted; ensure categorical features are encoded |
+| Model accuracy is poor | Review feature importance; check for data leakage; try different model types (XGBoost vs LinearRegression) |
+| Registry version conflict | Use a new version number or drop the existing version before re-registering |
+
 ## Next Skill
 
 After notebooks are built and models exported:

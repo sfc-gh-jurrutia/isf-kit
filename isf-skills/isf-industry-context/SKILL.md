@@ -218,6 +218,15 @@ The `isf-cortex-search` skill then creates a search service over this table.
 - `docs/*.md` — Domain knowledge documents (consumed by `isf-cortex-search`)
 - Search-prep views/tables DDL — Synthetic narrative SQL (consumed by `isf-cortex-search`)
 
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| No domain documents generated | Ensure `isf-context.md` has sufficient industry context (pain points, terminology); add more detail to the industry section |
+| Corpus too small for effective RAG | Generate additional narrative documents; aim for 50+ documents minimum for Cortex Search |
+| Duplicate content in narratives | Vary the document templates and scenarios; use different perspectives (regulatory, operational, strategic) |
+| Generated content lacks domain accuracy | Review and edit generated documents; consider loading industry-specific companion skills for terminology |
+
 ## Next Skill
 
 After domain knowledge and narratives are created:

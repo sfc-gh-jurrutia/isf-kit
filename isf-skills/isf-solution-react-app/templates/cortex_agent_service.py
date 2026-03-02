@@ -14,6 +14,7 @@ Usage:
 
 import os
 import json
+import time
 import httpx
 import logging
 from typing import Optional, List, Dict, Any, AsyncGenerator
@@ -66,6 +67,32 @@ def get_config() -> CortexAgentConfig:
     if _config is None:
         _config = CortexAgentConfig()
     return _config
+
+
+# ============================================================================
+# Persistent HTTP Client
+# ============================================================================
+
+_http_client: Optional[httpx.AsyncClient] = None
+
+
+def _get_http_client() -> httpx.AsyncClient:
+    """
+    Return a module-level persistent AsyncClient, creating it on first call.
+    Reuses TCP connections across requests and supports HTTP/2.
+    """
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(
+            verify=True,
+            timeout=120.0,
+            http2=True,
+            limits=httpx.Limits(
+                max_keepalive_connections=5,
+                keepalive_expiry=120,
+            ),
+        )
+    return _http_client
 
 
 # ============================================================================
@@ -129,6 +156,62 @@ def get_auth_headers() -> Dict[str, str]:
 
 
 # ============================================================================
+# Token + Endpoint Caching (SPCS optimisation)
+# ============================================================================
+
+_cached_token: Optional[str] = None
+_token_time: float = 0
+_TOKEN_TTL = 300  # seconds
+
+_cached_agent_endpoint: Optional[str] = None
+_cached_threads_endpoint: Optional[str] = None
+
+
+def get_auth_headers_cached() -> Dict[str, str]:
+    """
+    Cached auth headers for SPCS deployments.
+
+    Reads the Snowflake REST token from a pooled connection and caches it
+    for _TOKEN_TTL seconds. Falls back to the PAT-based get_auth_headers()
+    when the connection pool is unavailable (e.g. local dev).
+    """
+    global _cached_token, _token_time
+    now = time.time()
+    if not _cached_token or (now - _token_time) > _TOKEN_TTL:
+        try:
+            from snowflake_conn import get_connection, return_connection
+            conn = get_connection()
+            _cached_token = conn.rest.token
+            return_connection(conn)
+            _token_time = now
+        except Exception:
+            pass
+    if _cached_token:
+        return {
+            "Authorization": f'Snowflake Token="{_cached_token}"',
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+        }
+    return get_auth_headers()
+
+
+def _get_agent_endpoint() -> str:
+    """Return the agent endpoint, caching after first computation."""
+    global _cached_agent_endpoint
+    if _cached_agent_endpoint is None:
+        _cached_agent_endpoint = get_config().agent_endpoint
+    return _cached_agent_endpoint
+
+
+def _get_threads_endpoint() -> str:
+    """Return the threads endpoint, caching after first computation."""
+    global _cached_threads_endpoint
+    if _cached_threads_endpoint is None:
+        _cached_threads_endpoint = get_config().threads_endpoint
+    return _cached_threads_endpoint
+
+
+# ============================================================================
 # Thread Management
 # ============================================================================
 
@@ -137,27 +220,27 @@ async def create_thread() -> ThreadResponse:
     """Create a new conversation thread for multi-turn chat"""
     config = get_config()
     
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                config.threads_endpoint,
-                headers={
-                    **get_auth_headers(),
-                    "Content-Type": "application/json",
-                },
-                json={"origin_application": "react_chat_widget"},
-                timeout=30.0,
-            )
-            response.raise_for_status()
-            data = response.json()
-            return ThreadResponse(thread_id=data.get("thread_id", data.get("id")))
-            
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Thread creation failed: {e.response.text}")
-            raise HTTPException(status_code=e.response.status_code, detail=str(e))
-        except Exception as e:
-            logger.error(f"Thread creation error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+    client = _get_http_client()
+    try:
+        response = await client.post(
+            config.threads_endpoint,
+            headers={
+                **get_auth_headers(),
+                "Content-Type": "application/json",
+            },
+            json={"origin_application": "react_chat_widget"},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return ThreadResponse(thread_id=data.get("thread_id", data.get("id")))
+        
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Thread creation failed: {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Thread creation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -196,78 +279,78 @@ async def chat(request: ChatRequest) -> ChatResponse:
         ]
     }
     
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                config.agent_endpoint,
-                headers={
-                    **get_auth_headers(),
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-                timeout=120.0,
-            )
-            response.raise_for_status()
-            data = response.json()
-            
-            # Parse response
-            content = ""
-            sources = []
-            tool_calls = []
-            sql = None
-            message_id = None
-            
-            # Handle different response formats
-            if "messages" in data:
-                for msg in data["messages"]:
-                    if msg.get("role") == "assistant":
-                        for item in msg.get("content", []):
-                            if item.get("type") == "text":
-                                content += item.get("text", "")
-                            elif item.get("type") == "tool_result":
-                                tool_calls.append({
-                                    "name": item.get("tool_name"),
-                                    "type": item.get("tool_type"),
-                                    "output": item.get("result"),
-                                    "sql": item.get("sql"),
-                                })
-                                if item.get("sql"):
-                                    sql = item.get("sql")
-                        message_id = msg.get("id")
-                        
-            elif "response" in data:
-                content = data["response"]
-                sources = data.get("sources", [])
-                tool_calls = data.get("tool_calls", [])
-                sql = data.get("sql")
-            
-            # Extract citations/sources
-            if "citations" in data:
-                sources = [
-                    {
-                        "title": c.get("source", c.get("title", "Unknown")),
-                        "snippet": c.get("text", ""),
-                        "score": c.get("score"),
-                    }
-                    for c in data["citations"]
-                ]
-            
-            return ChatResponse(
-                response=content,
-                thread_id=thread_id,
-                message_id=message_id,
-                sources=sources,
-                tool_calls=tool_calls,
-                sql=sql,
-                context=data.get("context"),
-            )
-            
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Agent call failed: {e.response.text}")
-            raise HTTPException(status_code=e.response.status_code, detail=str(e))
-        except Exception as e:
-            logger.error(f"Agent error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+    client = _get_http_client()
+    try:
+        response = await client.post(
+            config.agent_endpoint,
+            headers={
+                **get_auth_headers(),
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=120.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Parse response
+        content = ""
+        sources = []
+        tool_calls = []
+        sql = None
+        message_id = None
+        
+        # Handle different response formats
+        if "messages" in data:
+            for msg in data["messages"]:
+                if msg.get("role") == "assistant":
+                    for item in msg.get("content", []):
+                        if item.get("type") == "text":
+                            content += item.get("text", "")
+                        elif item.get("type") == "tool_result":
+                            tool_calls.append({
+                                "name": item.get("tool_name"),
+                                "type": item.get("tool_type"),
+                                "output": item.get("result"),
+                                "sql": item.get("sql"),
+                            })
+                            if item.get("sql"):
+                                sql = item.get("sql")
+                    message_id = msg.get("id")
+                    
+        elif "response" in data:
+            content = data["response"]
+            sources = data.get("sources", [])
+            tool_calls = data.get("tool_calls", [])
+            sql = data.get("sql")
+        
+        # Extract citations/sources
+        if "citations" in data:
+            sources = [
+                {
+                    "title": c.get("source", c.get("title", "Unknown")),
+                    "snippet": c.get("text", ""),
+                    "score": c.get("score"),
+                }
+                for c in data["citations"]
+            ]
+        
+        return ChatResponse(
+            response=content,
+            thread_id=thread_id,
+            message_id=message_id,
+            sources=sources,
+            tool_calls=tool_calls,
+            sql=sql,
+            context=data.get("context"),
+        )
+        
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Agent call failed: {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Agent error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -385,51 +468,71 @@ async def stream_agent_response(
         ]
     }
     
-    async with httpx.AsyncClient() as client:
-        try:
-            async with client.stream(
-                "POST",
-                config.agent_endpoint,
-                headers={
-                    **get_auth_headers(),
-                    "Content-Type": "application/json",
-                    "Accept": "text/event-stream",
-                },
-                json=payload,
-                timeout=120.0,
-            ) as response:
-                response.raise_for_status()
-                
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        event_data = line[6:]
-                        if event_data == "[DONE]":
-                            yield f"data: [DONE]\n\n"
-                            break
-                        
-                        try:
-                            event = json.loads(event_data)
-                            mapped_event = map_cortex_event(event)
-                            yield f"data: {json.dumps(mapped_event)}\n\n"
-                        except json.JSONDecodeError:
-                            yield f"data: {event_data}\n\n"
+    client = _get_http_client()
+
+    # SSE deduplication state — Cortex Agent may send cumulative text
+    accumulated_text = ""
+    last_text_len = 0
+
+    try:
+        async with client.stream(
+            "POST",
+            config.agent_endpoint,
+            headers={
+                **get_auth_headers(),
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+            json=payload,
+            timeout=120.0,
+        ) as response:
+            response.raise_for_status()
+            
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    event_data = line[6:]
+                    if event_data == "[DONE]":
+                        yield f"data: [DONE]\n\n"
+                        break
                     
-                    elif line.strip():
-                        yield f"{line}\n"
-                        
-        except httpx.HTTPStatusError as e:
-            error_msg = json.dumps({
-                "event_type": "error",
-                "error": str(e),
-                "status_code": e.response.status_code,
-            })
-            yield f"data: {error_msg}\n\n"
-        except Exception as e:
-            error_msg = json.dumps({
-                "event_type": "error", 
-                "error": str(e),
-            })
-            yield f"data: {error_msg}\n\n"
+                    try:
+                        event = json.loads(event_data)
+                        mapped = map_cortex_event(event)
+
+                        # Deduplicate cumulative text_delta events
+                        if mapped.get("event_type") == "text_delta":
+                            new_text = mapped.get("text", "")
+                            if not new_text or accumulated_text.endswith(new_text):
+                                continue
+                            if new_text.startswith(accumulated_text) and len(new_text) > last_text_len:
+                                delta = new_text[last_text_len:]
+                                accumulated_text = new_text
+                                last_text_len = len(new_text)
+                                mapped["text"] = delta
+                            else:
+                                accumulated_text += new_text
+                                last_text_len = len(accumulated_text)
+
+                        yield f"data: {json.dumps(mapped)}\n\n"
+                    except json.JSONDecodeError:
+                        yield f"data: {event_data}\n\n"
+                
+                elif line.strip():
+                    yield f"{line}\n"
+                    
+    except httpx.HTTPStatusError as e:
+        error_msg = json.dumps({
+            "event_type": "error",
+            "error": str(e),
+            "status_code": e.response.status_code,
+        })
+        yield f"data: {error_msg}\n\n"
+    except Exception as e:
+        error_msg = json.dumps({
+            "event_type": "error", 
+            "error": str(e),
+        })
+        yield f"data: {error_msg}\n\n"
 
 
 @router.post("/run")

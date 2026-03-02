@@ -168,6 +168,18 @@ Run the validation query from `isf-data-generation` to confirm the discovery is 
 - [ ] FastAPI tests pass (`pytest`)
 - [ ] SPCS service is READY (if deployed)
 
+## Stopping Points
+
+- **⚠️ MANDATORY CHECKPOINT**: After test execution — present test results (pass/fail counts, specific failures) to user before proceeding
+
+## Output
+
+Test report containing:
+- Total tests run, passed, failed, skipped
+- Specific failure details with file/line references
+- Coverage summary (if applicable)
+- Recommendation: proceed / fix-and-retest
+
 ## Next Skill
 
 After all test layers pass:

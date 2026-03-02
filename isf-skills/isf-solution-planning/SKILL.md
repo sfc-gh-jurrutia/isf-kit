@@ -29,6 +29,15 @@ A populated `isf-context.md` in `specs/{solution}/`. At minimum needs:
 
 If the spec is incomplete, direct the user to run `isf-spec-curation` first.
 
+**Optional input:** `specs/{solution}/industry-skills.md` from `isf-skill-discovery`. If present, load each approved industry skill's `SKILL.md` for domain context during architecture planning. Map industry skill capabilities to pipeline phases in `tasks.md`:
+
+```
+Example tasks.md entry:
+  Phase: Data Architecture
+  Primary skill: isf-data-architecture
+  Companion: energy-data-patterns (provides entity schemas)
+```
+
 ## Core Workflow
 
 ```
@@ -272,6 +281,16 @@ specs/{solution}/
 - `specs/{solution}/plan.md` — Architecture plan with Mermaid diagrams (consumed by all downstream skills)
 - `specs/{solution}/tasks.md` — Ordered task list with skill assignments (consumed by `isf-solution-engine`)
 - Scaffolded project directory (consumed by all build skills)
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Spec is incomplete (missing T1 fields) | Direct user to `isf-spec-curation` to populate required fields |
+| Requirements don't fit any archetype | Ask user to clarify the primary use case; consider combining elements from multiple archetypes |
+| Scaffolding conflicts with existing files | Ask user if they want to overwrite or merge; back up existing files first |
+| Industry skills mapping unclear | Load the industry skill's SKILL.md and check its `provides:` field for capabilities |
+| Task dependencies are circular | Review the dependency graph; Cortex skills can run in parallel but Agent depends on all |
 
 ## Next Skill
 
