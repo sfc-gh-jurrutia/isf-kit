@@ -1,10 +1,19 @@
+/* ============================================================
+   ISF Solution Style Guide – Design Tokens
+   Dark theme is the default.
+   Set data-theme="light" on <html> for light theme.
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   1. Shared / theme-independent tokens
+   ---------------------------------------------------------- */
 :root {
-  /* Primaries */
+  /* Snowflake brand — primaries */
   --snowflake-blue: #29B5E8;
   --mid-blue: #11567F;
   --star-blue: #75CDD7;
 
-  /* Accents */
+  /* Snowflake brand — accents */
   --valencia-orange: #FF9F36;
   --purple-moon: #7254A3;
   --firstlight: #D45B90;
@@ -14,12 +23,106 @@
   --medium-gray: #5B5B5B;
   --white: #FFFFFF;
 
-  /* Semantic (accessibility-safe pairings) */
+  /* Semantic — before / after, positive / negative */
   --color-before: var(--valencia-orange);
   --color-after: var(--snowflake-blue);
   --color-positive: #28a745;
   --color-negative: #2563eb;
 
-  /* Background */
+  /* Legacy background alias */
   --bg-dark: #121212;
+
+  /* Semantic status */
+  --status-success: #22c55e;
+  --status-warning: #f97316;
+  --status-danger: #f43f5e;
+  --status-info: #3b82f6;
+
+  /* Chart palette */
+  --chart-primary: #6366f1;
+  --chart-primary-muted: rgba(99, 102, 241, 0.25);
+  --chart-primary-light: rgba(99, 102, 241, 0.10);
+  --chart-secondary: #8b5cf6;
+  --chart-secondary-muted: rgba(139, 92, 246, 0.25);
+  --chart-secondary-light: rgba(139, 92, 246, 0.10);
+  --chart-success: #22c55e;
+  --chart-success-muted: rgba(34, 197, 94, 0.25);
+  --chart-success-light: rgba(34, 197, 94, 0.10);
+  --chart-warning: #f59e0b;
+  --chart-warning-muted: rgba(245, 158, 11, 0.25);
+  --chart-warning-light: rgba(245, 158, 11, 0.10);
+  --chart-danger: #ef4444;
+  --chart-danger-muted: rgba(239, 68, 68, 0.25);
+  --chart-danger-light: rgba(239, 68, 68, 0.10);
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+
+  /* Spacing */
+  --space-card: 20px;
+  --space-section: 24px;
+
+  /* Persona accent layer (overridden by JS per-persona) */
+  --accent: var(--snowflake-blue);
+  --accent-rgb: 41, 181, 232;
+  --accent-hover: #1da1d1;
+  --accent-muted: rgba(41, 181, 232, 0.25);
+  --accent-light: rgba(41, 181, 232, 0.10);
+  --accent-dark: #11567F;
+  --accent-glow: transparent;
+}
+
+/* ----------------------------------------------------------
+   2. Dark theme (DEFAULT) — delta-irop palette
+   ---------------------------------------------------------- */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-main: #060a12;
+  --bg-surface: #080c14;
+  --bg-elevated: #0a0f18;
+  --bg-card: rgba(15, 23, 42, 0.6);
+  --bg-card-hover: rgba(15, 23, 42, 0.8);
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+
+  /* Text */
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.3);
+  --text-dim: rgba(255, 255, 255, 0.15);
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+
+  /* Scrollbar */
+  --scrollbar-track: #1e293b;
+  --scrollbar-thumb: #475569;
+}
+
+/* ----------------------------------------------------------
+   3. Light theme — aura Sovereign Light palette
+   ---------------------------------------------------------- */
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-main: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-overlay: rgba(15, 23, 42, 0.4);
+
+  /* Text */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-dim: #94a3b8;
+
+  /* Borders */
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* Scrollbar */
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
 }

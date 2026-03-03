@@ -230,6 +230,16 @@ Before delivering:
 | `references/video.md` | Video script structure and specs | Step 6 |
 | `assets/directory_structure.md` | File naming convention and directory layout | Always |
 
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Presentation template not found | Check `assets/` directory for template files; download Snowflake branded templates if missing |
+| Screenshots fail to capture | Ensure the deployed app is running and accessible; try manual screenshots if automated capture fails |
+| Architecture diagram rendering issues | Use Mermaid syntax; verify diagram renders in a Mermaid preview tool before including |
+| Blog post lacks technical depth | Re-read the `plan.md` architecture section and `isf-context.md` for technical details to include |
+| Demo video recording issues | Use screen recording software; ensure the app is in a clean state with sample data loaded |
+
 ## Pipeline Complete
 
 This is the **final skill** in the ISF Solution Engine pipeline. After packaging is complete, present the full deliverable summary to the user.

@@ -29,16 +29,38 @@ Generates the React+FastAPI application code for an ISF solution:
 - Cortex Agent from `isf-cortex-agent` (if chat/copilot UI)
 - Style tokens from `isf-solution-style-guide`
 
+## Quality Bar
+
+The output should match what you'd expect from a senior product designer at a top SaaS company:
+
+- Clean visual rhythm with intentional asymmetry -- not a uniform card grid
+- Obvious interactive affordances (hover, focus, active states on all clickable elements)
+- Graceful edge cases (empty states with CTA, skeleton loading, error boundaries)
+- Responsive without breakpoint artifacts (test at 375, 768, 1440 px)
+- Every component follows the best practices in `references/component-best-practices.md`
+- Zero anti-patterns from `references/ui-anti-patterns.md`
+- **Data density**: Every dashboard page has at minimum 4 KPI cards, a data table, and at least 2 chart/visualization types (see `rules/ux-data-density.md`)
+- **Page template compliance**: Layout matches the assigned template from `references/page-templates.md` with all REQUIRED zones populated
+- **ML visualization**: If ML models exist in the pipeline, SHAP/feature importance and prediction data are surfaced in the detail section (see `references/ml-visualization-patterns.md`)
+
 ## References
 
 | File | Purpose | When Loaded |
 |------|---------|-------------|
+| `references/page-templates.md` | **Mandatory page templates** (CommandCenter, AnalyticsExplorer, AssistantLayout) with required zones | **Always -- first reference loaded** |
+| `references/ml-visualization-patterns.md` | ML schema to frontend bridge: API patterns, SHAP/factor/prediction components | When ML models exist in the pipeline |
 | `references/copilot-learnings.md` | Architecture patterns from successful copilot implementations | Always |
 | `references/cortex-chat.md` | Cortex Agent chat integration patterns | When building copilot UI |
 | `references/workflow.md` | Multi-step workflow patterns | When building guided experiences |
 | `references/websocket-pattern.md` | FastAPI WebSocket + React hook for real-time push | When building live dashboards or monitoring UIs |
 | `references/reactflow-dag.md` | React Flow DAG visualization with custom nodes | When building workflow/pipeline/lineage visualizations |
-| `rules/*.md` | 13 production rules (a11y, performance, Snowflake-specific) | During code review |
+| `rules/*.md` | 18 production rules (a11y, performance, Snowflake-specific, data density) | During code review |
+| `references/dashboard-layout.md` | Two-panel layout, resizable sidebar, click-to-ask | When building dashboard UIs |
+| `references/component-gallery.md` | UI patterns from component.gallery mapped to ISF | For UI pattern inspiration |
+| `references/visual-polish.md` | Mandatory visual polish patterns (10 items) | During implementation and review |
+| `references/performance-patterns.md` | Backend + frontend performance guide (9 patterns) | During backend implementation |
+| `references/component-best-practices.md` | Best practices for 60 UI components (from component.gallery) | When building any UI component |
+| `references/ui-anti-patterns.md` | 21 anti-patterns to avoid (generic + ISF-specific) | During implementation and code review |
 
 ## Component Library (v2.1)
 
@@ -54,6 +76,23 @@ Composable React components for Cortex Agent integration in `templates/`.
 | `<CortexReasoning>` | Thinking/tool-use indicator |
 | `<CortexSources>` | Source citations from Search results |
 | `<CortexTool>` | Tool execution status display |
+| `<ThemedCard>` | Card/Badge/Button/StatusDot/DataState primitives |
+| `<AIThinking>` | Multi-stage AI processing animation |
+| `<AgentWorkflowViewer>` | ReactFlow agent metadata viewer (4 views) |
+| `<AgentSidebarPanel>` | Resizable sidebar with Chat + Workflow tabs |
+| `<DataLineageModal>` | Data lineage + business impact modal |
+| `<InterventionPanel>` | AI-recommended action cards |
+
+### Dashboard Components
+
+| Component | Description |
+|-----------|-------------|
+| `<KPIStrip>` | Row of 4-8 stat cards with click-to-ask, trend indicators, and crisis glow |
+| `<StatCard>` | Individual KPI card (used by KPIStrip) with click-to-ask wiring |
+| `<EntityDataTable>` | Sortable data table with sticky header, status badges, row selection, click-to-ask |
+| `<RiskFactorPanel>` | Factor decomposition with labeled progress bars, severity coloring |
+| `<FeatureImportanceChart>` | Horizontal SHAP bar chart with score badge and base rate line |
+| `<DetailSection>` | Slide-up container on entity select with animate-slide-up and DataState loading |
 
 ### Hooks
 
@@ -73,7 +112,10 @@ Composable React components for Cortex Agent integration in `templates/`.
 
 | File | Description |
 |------|-------------|
+| `main.py` | FastAPI app skeleton: lifespan, CORS, health, warmup, router wiring |
 | `cortex_agent_service.py` | FastAPI proxy for Cortex Agent with SSE streaming |
+| `snowflake_conn.py` | Thread-safe Snowflake connection pool (8 connections, SPCS auto-detect) |
+| `backend_patterns.py` | TTL cache, row serializer, bundle endpoint patterns, agent metadata |
 
 ## SSE Streaming Architecture
 
@@ -109,7 +151,7 @@ useEffect(() => {
 }, [pendingPrompt, status])
 ```
 
-## Production Rules (13 rules in `rules/`)
+## Production Rules (18 rules in `rules/`)
 
 | Rule | File | Category |
 |------|------|----------|
@@ -126,6 +168,11 @@ useEffect(() => {
 | Cortex LLM prompt patterns | `sf-cortex-llm-prompts.md` | Snowflake |
 | Agent status indicators | `ux-agent-status.md` | UX |
 | Entity color consistency | `ux-entity-colors.md` | UX |
+| **Minimum data density per page** | `ux-data-density.md` | **UX** |
+| Server-side TTL cache | `sf-ttl-cache.md` | Performance |
+| Persistent httpx client | `sf-httpx-reuse.md` | Performance |
+| No Cortex Agent bypass | `sf-no-sql-agent.md` | Snowflake |
+| Backend verification checklist | `sf-backend-checklist.md` | Snowflake |
 
 ## ISF Project Structure
 
@@ -142,9 +189,12 @@ src/ui/                          # React frontend
 
 api/                             # FastAPI backend
 ├── app/
-│   ├── main.py                  # FastAPI app, CORS, routers
-│   ├── routers/                 # Endpoint modules
-│   └── services/                # Copy cortex_agent_service.py here
+│   ├── main.py                  # Copy from templates/main.py
+│   ├── snowflake_conn.py        # Copy from templates/snowflake_conn.py
+│   ├── backend_patterns.py      # Copy from templates/backend_patterns.py
+│   ├── cortex_agent_service.py  # Copy from templates/cortex_agent_service.py
+│   ├── routers/                 # Domain endpoint modules
+│   └── services/                # Domain-specific logic
 ├── requirements.txt
 └── Dockerfile
 ```
@@ -159,21 +209,67 @@ api/                             # FastAPI backend
 2. SCAFFOLD
    └── Init Vite+React+TS: npm create vite@latest src/ui -- --template react-ts
    └── Install Tailwind, configure with style guide tokens
+   └── Configure vite.config.ts with API proxy (see below)
    └── Copy component templates from templates/
-   └── Create FastAPI main.py with CORS and routers
+   └── Copy tokens.css + design-system.css from isf-solution-style-guide
+   └── Set data-theme="dark" on <html> (or "light" per style guide)
+   └── Copy all template components from templates/components/
+   └── Copy snowflake_conn.py, backend_patterns.py, and cortex_agent_service.py from templates/
+   └── Copy templates/main.py → api/app/main.py
+
+   **Port convention**: uvicorn runs on **8000** (both local dev and inside SPCS).
+   nginx listens on 8080 in SPCS only. Vite proxy always targets 8000.
+
+   **Required `src/ui/vite.config.ts`:**
+
+   ```typescript
+   import { defineConfig } from 'vite'
+   import react from '@vitejs/plugin-react'
+
+   export default defineConfig({
+     plugins: [react()],
+     server: {
+       port: 3000,
+       proxy: {
+         '/api': {
+           target: 'http://localhost:8000',
+           changeOrigin: true,
+         },
+       },
+     },
+   })
+   ```
 
    ⚠️ STOP: Present scaffold plan (pages, components, Cortex integration points) for review before implementing.
 
 3. IMPLEMENT PAGES
-   └── Apply page template from plan.md (ExecutiveDashboard, ChatAnalytics, DataExplorer)
-   └── Wire Cortex Agent via useCortexAgent hook
-   └── Connect charts to API endpoints
+   └── **SELECT page template** from `references/page-templates.md` based on archetype in plan.md
+       CommandCenter (AI Copilot, Operational Dashboard, Predictive Analytics)
+       AnalyticsExplorer (Self-Service Analytics, Data Quality Monitor)
+       AssistantLayout (Knowledge Assistant)
+   └── **VERIFY all REQUIRED zones** have a component mapped before writing code
+   └── Build KPI strip using `KPIStrip` component (min 4 cards for CommandCenter)
+   └── Build entity data table using `EntityDataTable` component
+   └── Build detail section using `DetailSection` + `RiskFactorPanel` + `FeatureImportanceChart`
+   └── Wire Cortex Agent via useCortexAgent hook + AgentSidebarPanel
+   └── Connect charts to API endpoints (use ml-visualization-patterns.md for ML data)
    └── Apply isf-solution-style-guide tokens
+   └── **CHECK** `rules/ux-data-density.md` — count KPIs, tables, charts against minimums
 
 4. IMPLEMENT BACKEND
-   └── Copy cortex_agent_service.py, configure for project
-   └── Create data endpoints proxying DATA_MART queries
-   └── Add /health endpoint for SPCS readiness probe
+   └── **MUST** copy ALL backend templates (verify each exists in api/app/):
+       main.py, snowflake_conn.py, backend_patterns.py, cortex_agent_service.py
+   └── **SELECT Snowflake connection** for local development:
+       Run: `cat ~/.snowflake/connections.toml | grep '^\['`
+       Present the list of connection names to the user.
+       User selects one. Write to `api/.env`:
+         `SNOWFLAKE_CONNECTION_NAME=<selected>`
+   └── Configure remaining env vars in `api/.env`: SNOWFLAKE_ACCOUNT_URL,
+       CORTEX_AGENT_DATABASE, CORTEX_AGENT_SCHEMA, CORTEX_AGENT_NAME
+   └── Create domain data endpoints in routers/ using backend_patterns.py helpers
+   └── Run `rules/sf-backend-checklist.md` — all 8 items must pass
+
+   ⚠️ STOP: Present backend architecture (endpoints, cache strategy, pool config) for review before proceeding.
 
 5. VALIDATE
    └── npm run build passes
@@ -314,6 +410,40 @@ async function simulateStreaming(fullText: string, onUpdate: (text: string) => v
 
 Use this when the `/api/chat` endpoint returns JSON with a complete `response` field rather than streaming SSE events.
 
+## Performance Requirements
+
+Every ISF solution must meet these performance standards. See `references/performance-patterns.md` for full details.
+
+- [ ] Connection pool (`snowflake_conn.py`) used -- never connection-per-request
+- [ ] Persistent `httpx.AsyncClient` for Cortex Agent calls
+- [ ] TTL cache on all read endpoints (30-300s by data volatility)
+- [ ] Detail bundle endpoints for entity drill-downs
+- [ ] SSE cumulative text dedup in agent streaming proxy
+- [ ] `Promise.all()` for parallel frontend fetches
+- [ ] Input debouncing (300ms) on sliders and filters
+
+## Visual Polish Checklist
+
+Every ISF solution must implement these patterns. See `references/visual-polish.md` for implementation details.
+
+- [ ] Shimmer loading (`.data-revalidating`) on every data-dependent card
+- [ ] Click-to-ask on every metric (REQUIRED -- `setPendingPrompt()`)
+- [ ] AI thinking animation during agent streaming
+- [ ] Resizable agent sidebar with drag handle
+- [ ] Staggered fade-in on list/grid renders
+- [ ] Status dots with pulse on live indicators
+- [ ] Data lineage modal accessible from dashboard
+
+## Required Dependencies
+
+| Package | Purpose | Required |
+|---------|---------|----------|
+| `reactflow` | Workflow/lineage visualization | Yes -- mandated |
+| `clsx` | Class name merging | Yes |
+| `react-markdown` + `remark-gfm` | Agent response rendering | Yes |
+| `lucide-react` | Icon library | Recommended |
+| `@nivo/heatmap` | Grid visualizations | If heatmap views needed |
+
 ## Best Practices
 
 | Practice | Recommendation |
@@ -326,6 +456,21 @@ Use this when the `/api/chat` endpoint returns JSON with a complete `response` f
 | Loading states | Skeleton loaders matching final layout |
 | Real-time data | WebSocket for live metrics, SWR polling for slower updates |
 | Chat animation | Simulated streaming (15ms/word) when not using true SSE |
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| `ECONNREFUSED 127.0.0.1:8080` in dev | Vite proxy is targeting the nginx/SPCS port. Set proxy target to `http://localhost:8000` (uvicorn), not 8080 |
+| Agent responds but chat shows fallback message | SSE `event:` lines not parsed. Ensure `cortex_agent_service.py` parses both `event:` and `data:` lines |
+| `Unknown user-defined function SNOWFLAKE.CORTEX.AGENT` | No SQL function exists for agents. Use the REST API via `cortex_agent_service.py` template |
+| `SSL: CERTIFICATE_VERIFY_FAILED` | Account name has underscores. The template's `_normalize_account_url()` handles this; ensure it's being used |
+| `npm run build` fails with missing imports | Verify all template components were copied; check `clsx` and `reactflow` are installed |
+| Backend fails to connect to Snowflake | Check `snowflake_conn.py` config; verify SPCS token path or local connection name |
+| SSE streaming shows duplicated text | Verify `cortex_agent_service.py` has the SSE dedup logic (accumulated_text tracking) |
+| Agent sidebar not resizing | Check that the drag handle has `pointer-events: auto` and parent has `position: relative` |
+| Shimmer loading not appearing | Ensure `.data-revalidating` class is in `design-system.css` and CSS is imported |
+| Click-to-ask not working | Verify `pendingPrompt` state flows from the click handler to `AgentSidebarPanel` |
 
 ## Next Skill
 

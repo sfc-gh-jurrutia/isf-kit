@@ -107,6 +107,12 @@ User Message → Orchestrator → Intent Classification → Route to Agent(s) �
 
 ### 2. Cortex Service Integration Patterns
 
+> **Important:** The SQL patterns below (SEARCH_PREVIEW, ANALYST, COMPLETE)
+> are shown for reference only. In a copilot app with a Cortex Agent, these
+> services are configured as **agent tools** — do NOT call them manually
+> from API chat endpoints. Use `cortex_agent_service.py` to invoke the
+> agent, which orchestrates these tools automatically. See `rules/sf-no-sql-agent.md`.
+
 **Cortex Search with SEARCH_PREVIEW:**
 ```python
 sql = f"""

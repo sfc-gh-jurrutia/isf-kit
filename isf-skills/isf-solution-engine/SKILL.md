@@ -1,7 +1,7 @@
 ---
 name: isf-solution-engine
 description: >
-  Master orchestrator for the ISF Solution Generation pipeline. Chains 21 skills
+  Master orchestrator for the ISF Solution Generation pipeline. Chains 22 skills
   across 8 phases — from unstructured requirements to a fully deployed Snowflake
   solution with presentation materials. Use when: (1) building a complete ISF
   solution end-to-end, (2) starting a new project from requirements or a repo,
@@ -24,8 +24,9 @@ invoke the specific skill directly.
 ## Pipeline Overview
 
 ```
-Phase 1: INPUT ─────────── isf-spec-curation
-Phase 2: PLAN ──────────── isf-solution-planning
+Phase 1:   INPUT ─────────── isf-spec-curation
+Phase 1.5: DISCOVERY ─────── isf-skill-discovery
+Phase 2:   PLAN ──────────── isf-solution-planning
 Phase 3: DATA ARCHITECTURE  isf-data-architecture → isf-data-generation
 Phase 4: AI / CORTEX ────── isf-industry-context + isf-cortex-analyst + isf-cortex-search + isf-python-udf + isf-ml-models → isf-cortex-agent
 Phase 5: APPLICATION ────── isf-solution-react-app (+ isf-solution-style-guide, isf-notebook)
@@ -71,6 +72,25 @@ Where should we start?
 
 **⚠️ MANDATORY CHECKPOINT**: Confirm the curated spec with the user before proceeding.
 
+**After completion → Continue to Phase 1.5.**
+
+---
+
+### Phase 1.5: Discovery — Industry Skill Scan
+
+**Goal:** Discover domain-specific skills in the environment that can enhance the solution.
+
+**Load** `../isf-skill-discovery/SKILL.md`
+
+**Actions:**
+1. Scan environment for skills matching the industry from `isf-context.md`
+2. Present candidates to user for approval
+3. Output: `specs/{solution}/industry-skills.md`
+
+**If no industry skills found:** Produces an empty artifact. Pipeline continues normally.
+
+**⚠️ MANDATORY CHECKPOINT**: Confirm discovered skills (or lack thereof) before proceeding.
+
 **After completion → Continue to Phase 2.**
 
 ---
@@ -111,7 +131,7 @@ Where should we start?
 
 **Actions:**
 1. Follow the data generation workflow (LOAD ENTITIES → PLAN → SELECT MODE → GENERATE → VALIDATE)
-2. Output: seed CSVs in `src/data_engine/output/`, `manifest.json`
+2. Output: seed Parquet files in `src/data_engine/output/`, `manifest.json`
 
 **⚠️ MANDATORY CHECKPOINT**: Verify hidden discovery is present in generated data.
 
@@ -291,6 +311,7 @@ If the user returns to continue a project:
 |-------|-----------|-----------|
 | 1 - Input | `isf-spec-curation` | `../isf-spec-curation/` |
 | 1 - Input (repo) | `isf-repo-scanner` | `../isf-repo-scanner/` |
+| 1.5 - Discovery | `isf-skill-discovery` | `../isf-skill-discovery/` |
 | 2 - Plan | `isf-solution-planning` | `../isf-solution-planning/` |
 | 2 - Plan (style) | `isf-solution-style-guide` | `../isf-solution-style-guide/` |
 | 3 - Data | `isf-data-architecture` | `../isf-data-architecture/` |

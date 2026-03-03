@@ -1,0 +1,411 @@
+---
+name: "industry-agent-kit-complete"
+created: "2026-03-03T00:14:19.462Z"
+status: pending
+---
+
+# Plan: Industry Agent Kit Framework (Complete)
+
+## Overview
+
+Build a reusable framework for creating industry-specific Cortex Agents grounded in Snowflake's **3 Core Pillars**:
+
+| Pillar                         | Description                                   | Agent Kit Implementation              |
+| ------------------------------ | --------------------------------------------- | ------------------------------------- |
+| **AI in Every Workflow**       | Intelligence embedded in tools teams use      | Surfacing options + Action tools      |
+| **Business Logic and Context** | AI aligned with goals, rules, company context | Semantic views + VQRs + Orchestration |
+| **Unified Data Foundation**    | Trusted, governed data from Horizon Catalog   | **Governance module** (optional)      |
+
+---
+
+## Architecture: 3 Pillars
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  AGENT KIT - 3 PILLAR ARCHITECTURE                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │  PILLAR 1: AI IN EVERY WORKFLOW                                     │    │
+│  │                                                                     │    │
+│  │  Surfacing:                    Action Tools:                       │    │
+│  │  • Snowflake Intelligence      • Slack notifications               │    │
+│  │  • Slack / Teams               • Email reports                     │    │
+│  │  • Streamlit apps              • Ticket creation                   │    │
+│  │  • Cortex Code                 • CRM updates                       │    │
+│  │  • API integration             • Workflow triggers                 │    │
+│  └────────────────────────────────────────────────────────────────────┘    │
+│                                     │                                       │
+│                                     ▼                                       │
+│  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │  PILLAR 2: BUSINESS LOGIC AND CONTEXT                              │    │
+│  │                                                                     │    │
+│  │  Semantic Views:               Orchestration:                      │    │
+│  │  • Dimensions (what)           • Tool routing logic                │    │
+│  │  • Measures (metrics)          • Response instructions             │    │
+│  │  • VQRs (business rules)       • Persona-specific tone             │    │
+│  │  • Relationships (joins)       • Guardrails                        │    │
+│  │                                                                     │    │
+│  │  Knowledge Search:             Persona Context:                    │    │
+│  │  • Policies/guidelines         • Jobs to be done                   │    │
+│  │  • Playbooks/procedures        • KPIs/Outcomes                     │    │
+│  │  • Reference docs              • Pain points                       │    │
+│  └────────────────────────────────────────────────────────────────────┘    │
+│                                     │                                       │
+│                                     ▼                                       │
+│  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │  PILLAR 3: UNIFIED DATA FOUNDATION (HORIZON)                       │    │
+│  │                                                                     │    │
+│  │  Data Pipeline:                Governance Module (Optional):       │    │
+│  │  • RAW (sources)               • Data lineage explanation          │    │
+│  │  • BRONZE (cleansed)           • Policy explanation (masking, RAP) │    │
+│  │  • SILVER (enriched)           • Data quality reporting            │    │
+│  │  • GOLD (analytics)            • Access control queries            │    │
+│  │                                                                     │    │
+│  │  Foundation Attributes:                                            │    │
+│  │  Secure | Governed | Interoperable | Accessible | Reliable        │    │
+│  └────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Skills Inventory
+
+### Native Skills (Bundled/Remote)
+
+| Skill                         | Type    | Pillar | Purpose                        |
+| ----------------------------- | ------- | ------ | ------------------------------ |
+| create\_semantic\_view        | Remote  | 2      | Build semantic view YAML       |
+| semantic-view-optimization    | Bundled | 2      | Audit and test VQRs            |
+| search-optimization           | Bundled | 2      | Build Cortex Search services   |
+| create-cortex-agent           | Remote  | 1,2    | Assemble agent with tools      |
+| agent-optimization            | Bundled | 1,2    | Test and optimize agent        |
+| machine-learning              | Bundled | 2      | Train/deploy ML models         |
+| data-governance               | Bundled | 3      | Query access, audit, grants    |
+| sensitive-data-classification | Bundled | 3      | PII detection, SYSTEM$CLASSIFY |
+| data-policy                   | Bundled | 3      | Masking policies, row access   |
+
+### Custom Skills (ISF)
+
+| Skill                | Pillar | Purpose                         | Update Needed?                 |
+| -------------------- | ------ | ------------------------------- | ------------------------------ |
+| industry-personas    | 2      | Query/validate business persona | **Yes** - web search, outcomes |
+| industry-solutions   | 2      | Pain to solution mapping        | No                             |
+| industry-accelerator | 3      | Build full data pipeline        | **Yes** - persona patterns     |
+| industry-semantics   | 2,3    | Semantic views + synthetic data | **Yes** - marketing templates  |
+
+### New Skills to Create
+
+| Skill                  | Pillar | Purpose                                                         | Effort      |
+| ---------------------- | ------ | --------------------------------------------------------------- | ----------- |
+| **action-tools**       | 1      | Create action tools from jobs (Slack, email, tickets)           | 16-24 hours |
+| **horizon-governance** | 3      | Optional governance module (lineage, policies, quality, access) | 12-16 hours |
+
+---
+
+## New Skill: horizon-governance (Optional Module)
+
+### Purpose
+
+Add Horizon/governance capabilities to the agent as an optional module. When included, provides 4 tools:
+
+### Governance Tools
+
+| Tool                     | What It Does                       | Implementation                                   |
+| ------------------------ | ---------------------------------- | ------------------------------------------------ |
+| **explain\_lineage**     | "Where does this data come from?"  | Query pipeline metadata, show RAW→GOLD flow      |
+| **explain\_governance**  | "Why is this field masked?"        | Query masking/row policies, explain who set them |
+| **check\_data\_quality** | "How fresh/reliable is this data?" | Show freshness, completeness, trust score        |
+| **show\_access**         | "Who can access this data?"        | Query grants, roles, access history              |
+
+### Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  HORIZON-GOVERNANCE SKILL WORKFLOW                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  STEP 1: Ask if Governance Module Should Be Included                        │
+│  ─────────────────────────────────────────────────────                      │
+│                                                                              │
+│  ask_user_question:                                                         │
+│  "Should this agent include data governance capabilities?"                  │
+│  • Yes - full governance (lineage, policies, quality, access)              │
+│  • Partial - select which features                                          │
+│  • No - skip governance module                                              │
+│                                                                              │
+│  STEP 2: If Included, Generate Governance Infrastructure                    │
+│  ──────────────────────────────────────────────────────                     │
+│                                                                              │
+│  2a. Document Lineage                                                       │
+│      • Create LINEAGE_METADATA table                                        │
+│      • Populate with pipeline flow (RAW→BRONZE→SILVER→GOLD)                │
+│      • Include source systems, transform descriptions                       │
+│                                                                              │
+│  2b. Apply Data Policies (using data-policy skill)                          │
+│      • Identify PII columns (using sensitive-data-classification)           │
+│      • Create/apply masking policies                                        │
+│      • Create/apply row access policies if needed                           │
+│                                                                              │
+│  2c. Set Up Quality Tracking                                                │
+│      • Create DATA_QUALITY_METRICS table                                    │
+│      • Add freshness checks (last_updated timestamps)                       │
+│      • Add completeness checks (null counts, row counts)                    │
+│                                                                              │
+│  2d. Document Access                                                        │
+│      • Query ACCOUNT_USAGE.GRANTS_TO_ROLES                                  │
+│      • Query ACCOUNT_USAGE.ACCESS_HISTORY                                   │
+│      • Create ACCESS_SUMMARY view                                           │
+│                                                                              │
+│  STEP 3: Create Governance Tools (Stored Procedures)                        │
+│  ───────────────────────────────────────────────────                        │
+│                                                                              │
+│  explain_lineage(object_name VARCHAR):                                      │
+│    → Query LINEAGE_METADATA                                                 │
+│    → Return: source tables, transforms applied, business owners             │
+│                                                                              │
+│  explain_governance(column_name VARCHAR):                                   │
+│    → Query INFORMATION_SCHEMA.POLICY_REFERENCES                             │
+│    → Return: policy type, why applied, who created                          │
+│                                                                              │
+│  check_data_quality(table_name VARCHAR):                                    │
+│    → Query DATA_QUALITY_METRICS                                             │
+│    → Return: freshness, completeness, trust score                           │
+│                                                                              │
+│  show_access(object_name VARCHAR):                                          │
+│    → Query ACCESS_SUMMARY                                                   │
+│    → Return: roles with access, recent access history                       │
+│                                                                              │
+│  STEP 4: Add Governance Tools to Agent                                      │
+│  ────────────────────────────────────                                       │
+│                                                                              │
+│  Update agent spec to include:                                              │
+│  • explain_lineage tool                                                     │
+│  • explain_governance tool                                                  │
+│  • check_data_quality tool                                                  │
+│  • show_access tool                                                         │
+│                                                                              │
+│  Update orchestration instructions:                                         │
+│  • When asked "where does this come from?" → use explain_lineage           │
+│  • When asked "why is this masked?" → use explain_governance               │
+│  • When asked about freshness/quality → use check_data_quality             │
+│  • When asked "who can see this?" → use show_access                        │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Governance Tool Templates
+
+```
+-- explain_lineage
+CREATE OR REPLACE PROCEDURE EXPLAIN_LINEAGE(object_name VARCHAR)
+RETURNS TABLE(source VARCHAR, transform VARCHAR, description VARCHAR, owner VARCHAR)
+LANGUAGE SQL
+AS
+$$
+  SELECT source_table, transform_type, description, business_owner
+  FROM LINEAGE_METADATA
+  WHERE target_table ILIKE object_name
+  ORDER BY lineage_order
+$$;
+
+-- check_data_quality  
+CREATE OR REPLACE PROCEDURE CHECK_DATA_QUALITY(table_name VARCHAR)
+RETURNS TABLE(metric VARCHAR, value VARCHAR, status VARCHAR)
+LANGUAGE SQL
+AS
+$$
+  SELECT metric_name, metric_value, 
+         CASE WHEN metric_value >= threshold THEN 'PASS' ELSE 'WARN' END
+  FROM DATA_QUALITY_METRICS
+  WHERE table_name ILIKE table_name
+$$;
+```
+
+---
+
+## Updated Workflow (with 3 Pillars)
+
+### Phase 1: Persona Discovery (Pillar 2)
+
+**Task 1: Gather and Validate Business Persona**
+
+- Check ISF, web search if needed
+- Validate jobs, outcomes, pain points, systems
+- Store validated profile
+
+**Skill**: industry-personas (updated)
+
+---
+
+### Phase 2: Tool Derivation (Pillars 1, 2)
+
+**Task 2: Derive Read/Query Tools** (Pillar 2)
+
+- Parse jobs for "query", "show", "what is"
+- Map to Cortex Analyst tools
+
+**Task 3: Derive Knowledge Tools** (Pillar 2)
+
+- Parse jobs for "find", "search", "policy"
+- Map to Cortex Search tools
+
+**Task 4: Derive Action Tools** (Pillar 1)
+
+- Parse jobs for "alert", "send", "create ticket"
+- Map to action procedures
+
+**Task 5: Derive ML Tools** (Pillar 2)
+
+- Parse jobs for "predict", "forecast", "score"
+- Map to ML models
+
+**Skills**: create\_semantic\_view, search-optimization, action-tools (new), machine-learning
+
+---
+
+### Phase 3: Data Foundation (Pillar 3)
+
+**Task 6: Build Data Pipeline**
+
+- Create RAW → BRONZE → SILVER → GOLD
+- Generate synthetic data
+
+**Task 7: Apply Governance Module** (Optional)
+
+- Document lineage metadata
+- Classify sensitive data
+- Apply masking policies
+- Set up quality metrics
+- Create governance tools
+
+**Skills**: industry-accelerator, industry-semantics, **horizon-governance** (new, optional)
+
+---
+
+### Phase 4: Tool Implementation
+
+**Task 8: Create All Tools**
+
+- Semantic views with VQRs
+- Search services
+- Action procedures
+- ML models (if needed)
+- Governance procedures (if module included)
+
+---
+
+### Phase 5: Agent Assembly (All Pillars)
+
+**Task 9: Assemble Agent**
+
+Wire all tools together with pillar-aware orchestration:
+
+```
+orchestration:
+  instructions: |
+    You are {persona_name}, an AI assistant for {company}.
+    
+    PILLAR 1 - AI IN WORKFLOW:
+    You are embedded in {surfacing_option} to help with daily work.
+    You can take actions: {action_tools_list}
+    
+    PILLAR 2 - BUSINESS CONTEXT:
+    Your knowledge is grounded in:
+    - Semantic views: {semantic_views_list}
+    - Reference docs: {search_services_list}
+    - Business rules encoded in verified queries
+    
+    PILLAR 3 - DATA FOUNDATION:
+    {if governance_enabled}
+    Data governance capabilities:
+    - Use explain_lineage when asked "where does this come from?"
+    - Use explain_governance when asked "why is this masked?"
+    - Use check_data_quality for freshness/reliability questions
+    - Use show_access when asked "who can see this?"
+    
+    Always cite data source and freshness in responses.
+    {endif}
+```
+
+---
+
+### Phase 6: Testing
+
+**Task 10: Comprehensive Testing**
+
+| Layer      | Tests                                               | Pillar |
+| ---------- | --------------------------------------------------- | ------ |
+| Data       | Row counts, distributions, pipeline health          | 3      |
+| Governance | Lineage accurate, policies applied, quality tracked | 3      |
+| Semantic   | VQRs compile, results match                         | 2      |
+| Search     | Relevance, coverage                                 | 2      |
+| Actions    | Procedures execute, messages sent                   | 1      |
+| Agent E2E  | Tool selection, response quality                    | All    |
+
+---
+
+## Skills Summary
+
+### Existing (Use As-Is)
+
+| Skill                         | Pillar | Purpose               |
+| ----------------------------- | ------ | --------------------- |
+| create\_semantic\_view        | 2      | Build semantic views  |
+| semantic-view-optimization    | 2      | Test VQRs             |
+| search-optimization           | 2      | Build search services |
+| create-cortex-agent           | 1,2    | Assemble agent        |
+| agent-optimization            | 1,2    | Test agent            |
+| machine-learning              | 2      | ML models             |
+| data-governance               | 3      | Access/audit queries  |
+| sensitive-data-classification | 3      | PII detection         |
+| data-policy                   | 3      | Masking/row policies  |
+
+### Update Required
+
+| Skill                | Pillar | Changes                               | Effort  |
+| -------------------- | ------ | ------------------------------------- | ------- |
+| industry-personas    | 2      | Web search, outcomes, always-validate | 4-6 hrs |
+| industry-semantics   | 2,3    | Marketing templates, more patterns    | 4-8 hrs |
+| industry-accelerator | 3      | Persona-specific pipelines            | 2-4 hrs |
+
+### Create New
+
+| Skill                  | Pillar | Purpose                                  | Effort    |
+| ---------------------- | ------ | ---------------------------------------- | --------- |
+| **action-tools**       | 1      | Slack, email, ticket procedures          | 16-24 hrs |
+| **horizon-governance** | 3      | Lineage, policies, quality, access tools | 12-16 hrs |
+
+**Total Skill Work**: 38-58 hours
+
+---
+
+## Deliverables
+
+| Deliverable              | Pillar | Description                                      |
+| ------------------------ | ------ | ------------------------------------------------ |
+| Business Persona Profile | 2      | Validated persona with jobs, outcomes            |
+| Tool Manifest            | 1,2    | All tools mapped from persona                    |
+| Data Pipeline            | 3      | RAW→GOLD with synthetic data                     |
+| Governance Module        | 3      | Lineage, policies, quality, access (if included) |
+| Semantic Views           | 2      | YAML with outcome-aligned VQRs                   |
+| Search Services          | 2      | Indexed knowledge content                        |
+| Action Tools             | 1      | Slack, email, ticket procedures                  |
+| Agent Specification      | All    | JSON config with all tools                       |
+| Test Results             | All    | Pass/fail at each layer                          |
+
+---
+
+## Success Criteria
+
+| Metric                | Target                              | Pillar |
+| --------------------- | ----------------------------------- | ------ |
+| Persona validated     | User confirms all attributes        | 2      |
+| Tools derived         | All jobs have tools                 | 1,2    |
+| Data pipeline healthy | All layers populated                | 3      |
+| Governance applied    | Policies active, lineage documented | 3      |
+| VQRs pass             | 100% compile, 95% accurate          | 2      |
+| Actions work          | Procedures execute without error    | 1      |
+| Agent accurate        | 90%+ correct tool selection         | All    |

@@ -44,7 +44,7 @@ src/data_engine/
 ├── specs/               # Data shape specs (from entity YAML)
 │   └── {solution}.yaml  # Resolved entity definitions for this solution
 └── output/              # Generated files (committed to repo)
-    ├── {entity}.csv     # One file per entity
+    ├── {entity}.parquet # One file per entity (Parquet with Snappy compression)
     └── manifest.json    # Generation metadata (seed, timestamp, row counts)
 ```
 
@@ -247,14 +247,27 @@ Child entity ratios (typical):
 - Events per customer: 20-100
 - Sensor readings per equipment: 1,000-10,000
 
+## Dependencies
+
+The generator requires `pyarrow` for Parquet output. Ensure it is in the project's `requirements.txt`:
+
+```
+pyarrow>=14.0
+numpy
+faker
+pyyaml
+```
+
 ## Pre-Flight Checklist
 
 - [ ] Entity YAML files loaded for the solution's industry
+- [ ] `pyarrow` is installed (`uv pip install pyarrow`)
 - [ ] Generation plan reviewed (entities, row counts, mode)
 - [ ] Hidden discovery requirements identified
 - [ ] Entity dependency order determined (parents first)
 - [ ] seed=42 set in all generation code
 - [ ] Output directory is `src/data_engine/output/`
+- [ ] Output files are `.parquet` (not `.csv`)
 - [ ] Referential integrity verified (no orphaned FKs)
 - [ ] Hidden discovery verified with validation query
 - [ ] manifest.json generated with metadata
@@ -268,7 +281,7 @@ Child entity ratios (typical):
 - Migration files from `src/database/migrations/` (from `isf-data-architecture`)
 
 **Outputs:**
-- `src/data_engine/output/*.csv` — Seed data files (consumed by `isf-deployment`)
+- `src/data_engine/output/*.parquet` — Seed data files (consumed by `isf-deployment`)
 - `src/data_engine/output/manifest.json` — Generation metadata (consumed by `isf-diagnostics`)
 - Validation queries for hidden discovery (consumed by `isf-solution-testing`)
 
@@ -286,7 +299,7 @@ If running the full ISF pipeline via `isf-solution-engine`, return to the engine
 
 | Output | Consumed By |
 |--------|------------|
-| CSV files in `src/data_engine/output/` | `isf-deployment` (loads via COPY INTO) |
+| Parquet files in `src/data_engine/output/` | `isf-deployment` (loads via COPY INTO) |
 | Generation scripts | Developers (regenerate if schema changes) |
 | Validation queries | `isf-solution-testing` (hidden discovery verification) |
 | manifest.json | `isf-diagnostics` (data health checks) |
