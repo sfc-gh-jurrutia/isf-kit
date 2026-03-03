@@ -1,15 +1,15 @@
 ---
-title: Reuse Snowflake Connections
+title: Thread-Safe Snowflake Connection Pool
 impact: HIGH
-impactDescription: 50-200ms saved per request
-tags: snowflake, connection, pool, performance
+impactDescription: Concurrent query support + 50-200ms saved per request
+tags: snowflake, connection, pool, performance, spcs
 ---
 
-## Reuse Snowflake Connections
+## Thread-Safe Snowflake Connection Pool
 
-Maintain a connection pool instead of creating new Snowflake connections per request.
+Use the `snowflake_conn.py` template module instead of creating connections per request.
 
-**Why it matters**: Creating a Snowflake connection involves SSL handshake, authentication, and session setup—typically 50-200ms overhead. For a dashboard with 10 API calls, this adds 0.5-2 seconds of latency.
+**Why it matters**: Creating a Snowflake connection involves SSL handshake, authentication, and session setup (50-200ms). A dashboard with 10 concurrent API calls needs 10 connections served simultaneously — a singleton blocks them all behind one connection.
 
 **Incorrect (connection per request):**
 
@@ -21,91 +21,129 @@ router = APIRouter()
 
 @router.get("/api/metrics")
 async def get_metrics():
-    # Creates new connection every request - 50-200ms overhead
-    conn = snowflake.connector.connect(
-        connection_name="default"
-    )
+    conn = snowflake.connector.connect(connection_name="default")
     try:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM metrics")
         return cursor.fetchall()
     finally:
-        conn.close()  # Connection discarded
+        conn.close()  # connection discarded — 50-200ms wasted next call
 ```
 
-**Correct (connection pool):**
+**Incorrect (singleton — no concurrency):**
 
 ```python
-from fastapi import APIRouter, Depends
 import snowflake.connector
-from contextlib import asynccontextmanager
 from typing import Optional
 
-class SnowflakePool:
-    def __init__(self, connection_name: str = "default"):
-        self.connection_name = connection_name
-        self._connection: Optional[snowflake.connector.SnowflakeConnection] = None
-    
-    def get_connection(self) -> snowflake.connector.SnowflakeConnection:
-        if self._connection is None or self._connection.is_closed():
-            self._connection = snowflake.connector.connect(
-                connection_name=self.connection_name
-            )
-        return self._connection
-    
-    def close(self):
-        if self._connection and not self._connection.is_closed():
-            self._connection.close()
-            self._connection = None
+_connection: Optional[snowflake.connector.SnowflakeConnection] = None
 
-# Singleton pool
-_pool: Optional[SnowflakePool] = None
+def get_connection() -> snowflake.connector.SnowflakeConnection:
+    global _connection
+    if _connection is None or _connection.is_closed():
+        _connection = snowflake.connector.connect(connection_name="default")
+    return _connection
 
-def get_pool() -> SnowflakePool:
-    global _pool
-    if _pool is None:
-        _pool = SnowflakePool()
-    return _pool
-
-# FastAPI lifespan for cleanup
-@asynccontextmanager
-async def lifespan(app):
-    yield
-    if _pool:
-        _pool.close()
-
-# Usage in endpoint
+# Every endpoint shares one connection — concurrent requests serialize on it,
+# and if two threads use the same cursor simultaneously, results corrupt.
 @router.get("/api/metrics")
-async def get_metrics(pool: SnowflakePool = Depends(get_pool)):
-    conn = pool.get_connection()  # Reuses existing connection
+async def get_metrics():
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM metrics")
     return cursor.fetchall()
 ```
 
-**For high-concurrency apps:**
-
-Use `snowflake-connector-python`'s built-in connection pooling:
+**Correct (thread-safe pool from `snowflake_conn.py` template):**
 
 ```python
+import os
+import time
+import threading
 import snowflake.connector
-from snowflake.connector import pooling
+from typing import Optional, List
 
-# Create connection pool
-pool = pooling.ConnectionPool(
-    connection_name="default",
-    pool_size=5,
-    max_overflow=10,
-)
+_POOL_SIZE = int(os.getenv("SF_POOL_SIZE", "8"))
+_IDLE_CHECK_SECONDS = 120
 
-def get_connection():
-    return pool.getconn()
+_pool: List[dict] = []          # [{"conn": <SnowflakeConnection>, "last_used": <float>}]
+_lock = threading.Lock()
+_initialized = False
 
-def return_connection(conn):
-    pool.putconn(conn)
+
+def _make_connection() -> snowflake.connector.SnowflakeConnection:
+    token_path = "/snowflake/session/token"
+    if os.path.exists(token_path):
+        with open(token_path) as f:
+            token = f.read().strip()
+        return snowflake.connector.connect(
+            host=os.getenv("SNOWFLAKE_HOST"),
+            account=os.getenv("SNOWFLAKE_ACCOUNT"),
+            token=token,
+            authenticator="oauth",
+            client_session_keep_alive=True,
+        )
+    return snowflake.connector.connect(
+        connection_name="default",
+        client_session_keep_alive=True,
+    )
+
+
+def _health_check(entry: dict) -> bool:
+    """Only probe connections idle longer than _IDLE_CHECK_SECONDS."""
+    if time.time() - entry["last_used"] < _IDLE_CHECK_SECONDS:
+        return True
+    try:
+        entry["conn"].cursor().execute("SELECT 1")
+        return True
+    except Exception:
+        return False
+
+
+def get_connection() -> snowflake.connector.SnowflakeConnection:
+    with _lock:
+        while _pool:
+            entry = _pool.pop()
+            if _health_check(entry):
+                return entry["conn"]
+            try:
+                entry["conn"].close()
+            except Exception:
+                pass
+    return _make_connection()
+
+
+def return_connection(conn: snowflake.connector.SnowflakeConnection) -> None:
+    with _lock:
+        if len(_pool) < _POOL_SIZE:
+            _pool.append({"conn": conn, "last_used": time.time()})
+        else:
+            try:
+                conn.close()
+            except Exception:
+                pass
 ```
 
-**Snowflake-specific notes**:
-- Default session timeout is 4 hours; connections auto-reconnect
-- Use `conn.is_closed()` to check connection state before reuse
-- Set `CLIENT_SESSION_KEEP_ALIVE=true` for long-running apps
+**Key features:**
+- `_POOL_SIZE = 8` connections (configurable via `SF_POOL_SIZE` env var)
+- `threading.Lock()` for thread safety
+- Lazy health check: only `SELECT 1` on connections idle >2 minutes
+- `client_session_keep_alive=True` for SPCS long-lived containers
+- SPCS auto-detection via `/snowflake/session/token`
+- Always return connections via `return_connection()` in a `finally` block
+
+**Usage in endpoints:**
+
+```python
+from snowflake_conn import get_connection, return_connection
+
+@router.get("/api/metrics")
+async def get_metrics():
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM metrics LIMIT 100")
+        return cursor.fetchall()
+    finally:
+        return_connection(conn)
+```

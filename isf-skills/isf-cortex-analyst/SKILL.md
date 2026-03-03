@@ -335,6 +335,16 @@ src/database/cortex/
 - `src/database/cortex/semantic_model.yaml` — Semantic model YAML (consumed by `isf-deployment`, `isf-cortex-agent`)
 - Semantic View in Snowflake (consumed by `isf-cortex-agent`)
 
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Semantic model validation fails | Check column names match exactly (case-sensitive) between model YAML and actual table/view columns |
+| Analyst returns "I don't know" for expected queries | Add more `sample_questions` to the semantic model; ensure the question pattern matches a defined metric or dimension |
+| Multi-view model conflicts | Ensure each view has unique dimension/metric names; use `synonyms` to handle overlapping terms |
+| "Table not found" errors | Verify the semantic model's `tables.name` matches the fully qualified `DATABASE.SCHEMA.TABLE` path |
+| Slow query generation | Simplify the semantic model; reduce the number of joins; add `description` fields to help Analyst choose the right path |
+
 ## Next Skill
 
 After the semantic model is built:

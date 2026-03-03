@@ -177,6 +177,19 @@ notebooks/
 | `assets/environment.yml` | Template conda environment file | When scaffolding notebooks |
 | `assets/notebook_deploy.sh` | Deployment script for notebook creation | When deploying |
 
+## Contract
+
+**Inputs:**
+- `plan.md` from `isf-solution-planning` (ML strategy, model requirements)
+- `isf-context.md` for data model and feature definitions
+- Seed data from `isf-data-generation`
+
+**Outputs:**
+- Snowflake Notebook files in `notebooks/`
+- Trained model artifacts registered in Snowflake Model Registry
+- Feature engineering procedures in `src/database/functions/`
+- ML evaluation results (accuracy, SHAP values) documented in notebook outputs
+
 ## Next Skill
 
 After notebooks are built:

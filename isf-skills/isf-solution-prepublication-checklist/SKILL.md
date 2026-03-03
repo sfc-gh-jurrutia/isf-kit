@@ -31,7 +31,7 @@ Run this skill after `isf-solution-testing` passes all layers. This is the final
 |-------|---------|
 | `deploy/setup.sql` exists | Infrastructure provisioning script present |
 | `src/database/migrations/` has V*.sql files | schemachange migrations present |
-| `src/data_engine/output/` has CSVs + manifest.json | Seed data pre-generated and committed |
+| `src/data_engine/output/` has Parquet files + manifest.json | Seed data pre-generated and committed |
 | `src/ui/package.json` exists | React app present |
 | `api/app/main.py` exists | FastAPI backend present |
 | `deploy/spcs/Dockerfile` exists | SPCS deployment ready |
@@ -115,6 +115,28 @@ If ANY of these are true, the solution **must not be published**:
 | All block-release signals clear + all checks pass | Ship |
 | Any block-release signal true | No ship — fix first |
 | Block-release clear but minor checks fail | Conditional — document exceptions |
+
+## Stopping Points
+
+- **⚠️ MANDATORY CHECKPOINT**: After running the checklist — present all pass/fail results to the user before marking the solution as approved or flagging failures
+- **⚠️ MANDATORY STOPPING POINT**: Before marking a solution as "approved for publication" — user must explicitly confirm
+
+## Output
+
+Checklist report containing:
+- Pass/fail status for each checklist item
+- Specific failures with remediation guidance
+- Overall verdict: approved / needs-revision
+- Timestamp and solution identifier
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Checklist item fails but seems incorrect | Re-run the specific check with verbose output; some checks depend on deployment state |
+| Style guide violations detected | Re-load `isf-solution-style-guide` and apply fixes, then re-run checklist |
+| Security check fails on test credentials | Ensure `.env` files are in `.gitignore` and no secrets are committed |
+| Missing test coverage | Return to `isf-solution-testing` to add missing test cases |
 
 ## Next Skill
 

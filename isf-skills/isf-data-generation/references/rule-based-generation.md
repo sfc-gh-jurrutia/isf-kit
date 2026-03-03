@@ -95,9 +95,9 @@ JOIN {schema}.{parent_entity} parent
 Snowflake SQL RANDOM() does not accept a seed parameter directly. For reproducibility:
 
 1. Generate data once using the SQL patterns above
-2. Export to CSV: `COPY INTO @stage/{entity}.csv FROM {schema}.{entity}`
-3. Commit CSVs to `src/data_engine/output/`
-4. Deployment loads from committed CSVs, never regenerates
+2. Export to Parquet: `COPY INTO @stage/{entity}.parquet FROM {schema}.{entity} FILE_FORMAT = (TYPE = PARQUET)`
+3. Commit Parquet files to `src/data_engine/output/`
+4. Deployment loads from committed Parquet files, never regenerates
 
 The reproducibility comes from committing the output, not from seeding the SQL.
 

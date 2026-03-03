@@ -74,8 +74,8 @@ make test            # Run all tests
    └── Verify migration history (SCHEMACHANGE.CHANGE_HISTORY)
 
 4. LOAD SEED DATA
-   └── Stage CSV files from src/data_engine/output/
-   └── COPY INTO target tables
+   └── Stage Parquet files from src/data_engine/output/
+   └── COPY INTO target tables (MATCH_BY_COLUMN_NAME)
    └── Verify row counts
 
 5. DEPLOY CORTEX OBJECTS (if applicable)
@@ -140,19 +140,19 @@ Migrations follow the versioning convention from `isf-data-architecture`:
 ```bash
 # Stage files
 snow stage create @{DATABASE}.RAW.SEED_DATA --if-not-exists -c ${CONNECTION}
-snow stage copy src/data_engine/output/*.csv @{DATABASE}.RAW.SEED_DATA -c ${CONNECTION}
+snow stage copy src/data_engine/output/*.parquet @{DATABASE}.RAW.SEED_DATA -c ${CONNECTION}
 
 # Load into tables
 snow sql -f src/data_engine/loaders/load_seeds.sql -c ${CONNECTION}
 ```
 
-The load script uses COPY INTO with error handling:
+The load script uses COPY INTO with Parquet format and column-name matching:
 
 ```sql
 COPY INTO RAW.{TABLE_NAME}
-FROM @RAW.SEED_DATA/{table_name}.csv
-FILE_FORMAT = (TYPE = CSV SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"')
-ON_ERROR = 'ABORT_STATEMENT';
+FROM @RAW.SEED_DATA/{table_name}.parquet
+FILE_FORMAT = (TYPE = PARQUET)
+MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
 ```
 
 ## Stage 4: App Deployment
@@ -421,7 +421,7 @@ Auto-suspend is configured at creation (`--auto-suspend-secs 300`). For demo env
 - [ ] `.env` configured with connection details
 - [ ] `deploy/setup.sql` creates database, schemas, roles, warehouse
 - [ ] `src/database/migrations/` has versioned DDL files
-- [ ] `src/data_engine/output/` has seed CSVs with manifest.json
+- [ ] `src/data_engine/output/` has seed Parquet files with manifest.json
 - [ ] `deploy/spcs/Dockerfile` builds successfully locally
 - [ ] `deploy/spcs/service-spec.yaml` has correct image path
 - [ ] Readiness probe configured on port 8080, path /health
@@ -434,7 +434,7 @@ Auto-suspend is configured at creation (`--auto-suspend-secs 300`). For demo env
 |-------|-------|-----|
 | Connection failed | `snow connection test -c {conn}` | Verify .env, check network |
 | Migration failed | Check SCHEMACHANGE.CHANGE_HISTORY | Fix SQL, re-run schemachange |
-| COPY INTO failed | Check file format, column count | Verify CSV headers match table |
+| COPY INTO failed | Check file format, column names | Verify Parquet schema matches table (MATCH_BY_COLUMN_NAME) |
 | Docker build fails | `docker build .` locally | Fix Dockerfile, check dependencies |
 | Service stuck PENDING | `snow spcs compute-pool status {pool}` | Check pool capacity, image exists |
 | Container crash loop | `snow spcs service logs {service}` | Check CMD, env vars, port |

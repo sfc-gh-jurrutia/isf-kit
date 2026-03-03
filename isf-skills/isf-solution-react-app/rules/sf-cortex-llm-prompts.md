@@ -2,6 +2,14 @@
 
 ## Impact: MEDIUM - Important for domain-specific generation
 
+> **Scope: data generation and batch processing ONLY.**
+> Do NOT use `CORTEX.COMPLETE` for chat endpoints or copilot UIs.
+> If a Cortex Agent exists in the solution, all user-facing chat must
+> go through `cortex_agent_service.py` (REST API), which invokes the
+> agent and its configured tools. Calling `CORTEX.COMPLETE` directly
+> bypasses the agent's search, analyst, and other tools -- the raw LLM
+> has no data access and will respond with "I don't have access."
+
 ## Pattern
 
 Structure LLM prompts with clear sections for reliable output:

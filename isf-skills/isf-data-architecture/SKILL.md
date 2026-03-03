@@ -280,6 +280,16 @@ Save to references/entities/{industry}.yaml? [Yes] [New file] [Skip]
 - `src/database/cortex/*.sql` — Cortex object DDL stubs (consumed by `isf-cortex-*` skills)
 - Entity definitions — Schema for synthetic data (consumed by `isf-data-generation`)
 
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Entity YAML not found | Check `references/entities/` for the industry YAML; fall back to `_core.yaml` for generic entities |
+| Migration version conflict | Increment the version number; check `src/database/migrations/` for existing versions |
+| "Schema already exists" error | Use `CREATE SCHEMA IF NOT EXISTS` in setup.sql; migrations should be idempotent |
+| VARIANT column not queryable | Use `column:field::TYPE` syntax for VARIANT access; ensure source data is valid JSON |
+| Search-prep view missing columns | Verify the view includes all columns referenced by `isf-cortex-search` service definition |
+
 ## Next Skill
 
 After migrations are generated and reviewed:

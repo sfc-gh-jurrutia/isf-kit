@@ -29,6 +29,15 @@ A populated `isf-context.md` in `specs/{solution}/`. At minimum needs:
 
 If the spec is incomplete, direct the user to run `isf-spec-curation` first.
 
+**Optional input:** `specs/{solution}/industry-skills.md` from `isf-skill-discovery`. If present, load each approved industry skill's `SKILL.md` for domain context during architecture planning. Map industry skill capabilities to pipeline phases in `tasks.md`:
+
+```
+Example tasks.md entry:
+  Phase: Data Architecture
+  Primary skill: isf-data-architecture
+  Companion: energy-data-patterns (provides entity schemas)
+```
+
 ## Core Workflow
 
 ```
@@ -42,8 +51,9 @@ If the spec is incomplete, direct the user to run `isf-spec-curation` first.
    └── Design data flow: source → landing → transform → curated
    └── Select Cortex features based on use cases (UC-xxx)
    └── Define API surface (FastAPI endpoints)
+   └── **PLAN UI STRATEGY** (REQUIRED — see section below)
    └── Generate architecture diagram (Mermaid)
-   ⚠️ STOP: Present architecture plan for review before task breakdown.
+   ⚠️ STOP: Present architecture plan (including UI strategy) for review before task breakdown.
 
 3. BREAK DOWN TASKS
    └── Group by workstream: Data, AI/Cortex, App, Deploy
@@ -190,6 +200,75 @@ All ISF solutions use React + FastAPI deployed to SPCS.
 | ML training / exploration | Snowflake Notebook | `isf-notebook` |
 | GPU / distributed training | Notebook with Container Runtime | `isf-notebook` |
 
+## UI Strategy (REQUIRED in plan.md)
+
+Every `plan.md` MUST include a **UI Strategy** section. This section is consumed by `isf-solution-react-app` to enforce data-rich layouts and prevent chat-only UIs. Omitting this section is a planning failure.
+
+### What to Specify
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Page template** | One of: `CommandCenter`, `AnalyticsExplorer`, `AssistantLayout` (from `isf-solution-react-app/references/page-templates.md`) | `CommandCenter` |
+| **KPI definitions** | 4-8 metrics with: label, source query/table, unit, critical threshold | `Flights at Risk` from `DATA_MART.FLIGHT_RISK_SUMMARY`, threshold > 50 |
+| **Data table entity** | Primary entity type, columns, status field, sort default | `Active Flights`: flight_id, route, status, risk_score, pax, revenue |
+| **Chart assignments** | Which visualizations to include and their data sources | `RiskFactorPanel` from factor decomposition view; `FeatureImportanceChart` from ML.GLOBAL_FEATURE_IMPORTANCE |
+| **Detail section panels** | What appears on entity drill-down | Risk factors, weather impact, SHAP explainability |
+| **Agent sidebar** | Whether agent sidebar is included, what tools it exposes | Yes -- Cortex Agent with Analyst + Search tools |
+
+### Template for plan.md
+
+```markdown
+## UI Strategy
+
+### Page Template: CommandCenter
+
+### KPI Strip (6 cards)
+| Metric | Source | Unit | Critical Threshold |
+|--------|--------|------|--------------------|
+| Flights at Risk | DATA_MART.RISK_SUMMARY.AT_RISK_COUNT | count | > 50 |
+| Critical Flights | DATA_MART.RISK_SUMMARY.CRITICAL_COUNT | count | > 0 |
+| Passengers at Risk | DATA_MART.RISK_SUMMARY.PAX_AT_RISK | count | > 10000 |
+| Revenue Exposure | DATA_MART.RISK_SUMMARY.REVENUE_EXPOSURE | USD | > $100K |
+| Projected OTP | DATA_MART.OTP_METRICS.PROJECTED_OTP | % | < 80% |
+| Crew Timeouts | DATA_MART.CREW_METRICS.TIMEOUT_COUNT | count | > 100 |
+
+### Data Table: Active Flights
+- Entity: FLIGHT
+- Columns: flight_id, route, status (badge), risk_score, pax_count, elite_count, revenue
+- Default sort: risk_score DESC
+- Status badge map: { "Delayed": "danger", "On Time": "success", "Hidden": "warning" }
+
+### Charts
+1. RiskFactorPanel — factor decomposition from FLIGHT_RISK_FACTORS view
+2. FeatureImportanceChart — SHAP from ML.GLOBAL_FEATURE_IMPORTANCE (risk model)
+3. Weather impact visualization — domain-specific route + severity map
+
+### Detail Section (on flight select)
+- Entity header: flight ID, route badges, status
+- Left panel: RiskFactorPanel (Weather, Crew, Aircraft, Connections, ATC)
+- Center panel: Weather Risk Impact (route map + risk contribution)
+- Right panel: FeatureImportanceChart (per-flight SHAP from ML.PREDICTION_EXPLANATIONS)
+
+### Agent Sidebar
+- Template: AgentSidebarPanel (Chat + Workflow tabs)
+- Agent: IROP_INTELLIGENCE_AGENT
+- Tools: Cortex Analyst (flight queries), Cortex Search (procedures/manuals)
+- Context injection: selected flight ID prepended to prompts
+```
+
+### Archetype → Template Mapping
+
+| Archetype | Template | Min KPIs | Data Table | Charts | Agent |
+|-----------|----------|----------|------------|--------|-------|
+| AI Copilot | CommandCenter | 4 | Required | 2 | Required |
+| Operational Dashboard | CommandCenter | 6 | Required | 3 | Optional |
+| Predictive Analytics | CommandCenter | 4 | Required | 2 (inc. ML) | Required |
+| Data Quality Monitor | AnalyticsExplorer | 4 | Required | 2 | None |
+| Self-Service Analytics | AnalyticsExplorer | 4 | Required | 1 | None |
+| Knowledge Assistant | AssistantLayout | 0 | Optional | 0 | N/A |
+
+If the archetype is AI Copilot, Operational Dashboard, or Predictive Analytics but the UI Strategy specifies fewer than 4 KPIs or no data table, **reject the plan** and add the missing elements before proceeding.
+
 ## Constraints
 
 These apply across all ISF skills:
@@ -230,6 +309,7 @@ Before starting implementation:
 
 - [ ] `isf-context.md` curated with T1 fields populated
 - [ ] Architecture plan reviewed (data flow, Cortex features, API surface)
+- [ ] **UI Strategy section in plan.md** — page template selected, KPIs defined, data table specified, charts assigned, detail section planned
 - [ ] Task breakdown ordered by dependency
 - [ ] Project scaffolded from standard structure
 - [ ] `deploy/setup.sql` created with database, schemas, roles
@@ -242,7 +322,7 @@ Before starting implementation:
 
 ## Stopping Points
 
-- After PLAN ARCHITECTURE: approve data flow, Cortex feature selection, and API surface
+- After PLAN ARCHITECTURE: approve data flow, Cortex feature selection, API surface, and **UI strategy (page template, KPIs, charts, detail section)**
 - After BREAK DOWN TASKS: approve task list and skill assignments before scaffolding
 
 ## Output
@@ -250,7 +330,7 @@ Before starting implementation:
 ```
 specs/{solution}/
   ├── isf-context.md          # Input (from isf-spec-curation)
-  ├── plan.md                 # Architecture plan with Mermaid diagrams
+  ├── plan.md                 # Architecture plan with Mermaid diagrams + UI Strategy section
   └── tasks.md                # Ordered task list with skill assignments
 
 {project}/                     # Scaffolded project directory
@@ -269,9 +349,19 @@ specs/{solution}/
 - `specs/{solution}/isf-context.md` — Curated spec (from `isf-spec-curation`)
 
 **Outputs:**
-- `specs/{solution}/plan.md` — Architecture plan with Mermaid diagrams (consumed by all downstream skills)
+- `specs/{solution}/plan.md` — Architecture plan with Mermaid diagrams + **UI Strategy section** (consumed by all downstream skills, especially `isf-solution-react-app`)
 - `specs/{solution}/tasks.md` — Ordered task list with skill assignments (consumed by `isf-solution-engine`)
 - Scaffolded project directory (consumed by all build skills)
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Spec is incomplete (missing T1 fields) | Direct user to `isf-spec-curation` to populate required fields |
+| Requirements don't fit any archetype | Ask user to clarify the primary use case; consider combining elements from multiple archetypes |
+| Scaffolding conflicts with existing files | Ask user if they want to overwrite or merge; back up existing files first |
+| Industry skills mapping unclear | Load the industry skill's SKILL.md and check its `provides:` field for capabilities |
+| Task dependencies are circular | Review the dependency graph; Cortex skills can run in parallel but Agent depends on all |
 
 ## Next Skill
 

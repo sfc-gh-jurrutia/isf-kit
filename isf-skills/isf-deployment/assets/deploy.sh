@@ -105,13 +105,13 @@ fi
 # Stage 2: Load Seed Data
 if should_run "data"; then
     echo "Stage 3: Loading seed data..."
-    if [ -d src/data_engine/output ] && ls src/data_engine/output/*.csv 1>/dev/null 2>&1; then
+    if [ -d src/data_engine/output ] && ls src/data_engine/output/*.parquet 1>/dev/null 2>&1; then
         snow sql $SNOW -q "CREATE STAGE IF NOT EXISTS ${DATABASE}.RAW.SEED_DATA;"
 
-        for csv in src/data_engine/output/*.csv; do
-            TABLE_NAME=$(basename "$csv" .csv | tr '[:lower:]' '[:upper:]')
+        for file in src/data_engine/output/*.parquet; do
+            TABLE_NAME=$(basename "$file" .parquet | tr '[:lower:]' '[:upper:]')
             echo "  Loading ${TABLE_NAME}..."
-            snow stage copy "$csv" "@${DATABASE}.RAW.SEED_DATA/" $SNOW
+            snow stage copy "$file" "@${DATABASE}.RAW.SEED_DATA/" $SNOW
         done
 
         if [ -f src/data_engine/loaders/load_seeds.sql ]; then

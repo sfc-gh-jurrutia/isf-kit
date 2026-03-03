@@ -166,6 +166,8 @@ For Semantic View (recommended over stage-based YAML):
 
 ## Calling the Agent
 
+**DO NOT** call agents via SQL (e.g. `SNOWFLAKE.CORTEX.AGENT()` or `SELECT SNOWFLAKE.CORTEX.AGENT(...)`). No such SQL function exists. Agents are invoked **exclusively** via the REST API below.
+
 ### REST API Endpoint
 
 **CRITICAL**: Use `/agents/` not `/cortex-agents/` in the path.
@@ -185,25 +187,31 @@ POST /api/v2/databases/{DATABASE}/schemas/{SCHEMA}/agents/{AGENT_NAME}:run
 }
 ```
 
-### Response Format (Streaming Events)
+### Response Format (SSE Streaming)
 
-```json
-[
-  {"event": "text", "data": {"text": "Here is..."}},
-  {"event": "tool_result", "data": {"text": "SQL result..."}},
-  {"event": "analyst_result", "data": {"sql": "SELECT ..."}},
-  {"event": "error", "data": {"message": "...", "code": "..."}},
-  {"event": "done", "data": "[DONE]"}
-]
+Snowflake sends Server-Sent Events in a **two-line** format — an `event:` line followed by a `data:` line:
+
+```
+event: response.output.delta
+data: {"text": "Based on the data..."}
+
+event: response.output.delta
+data: {"text": "total sales were $1.2M"}
+
+event: response.thinking.delta
+data: {"text": "Looking up sales data..."}
+
+data: [DONE]
 ```
 
-| Event | Description |
+**You must parse both lines.** The `event:` line carries the event type; the `data:` line carries the JSON payload. If you only parse `data:` lines, you won't know the event type and text will be silently dropped.
+
+| SSE Event Type | Description |
 |-------|-------------|
-| `text` | Assistant text (accumulate from multiple events) |
-| `tool_result` | Results from tool execution |
-| `analyst_result` | Cortex Analyst generated SQL and results |
-| `error` | Error with message and code |
-| `done` | End of stream |
+| `response.output.delta` | Assistant text chunk (accumulate from multiple events) |
+| `response.text.delta` | Alternative text output (treat same as `response.output.delta`) |
+| `response.thinking.delta` | Agent reasoning / thinking process |
+| (no event line, data is `[DONE]`) | End of stream |
 
 For React+FastAPI integration patterns (SSE streaming hook, Zustand state, FastAPI proxy), see `isf-solution-react-app`.
 
@@ -350,11 +358,14 @@ Agent DDL is deployed by `isf-deployment` after the data layer and Cortex servic
 
 | Error | Cause | Fix |
 |-------|-------|-----|
+| `Unknown user-defined function SNOWFLAKE.CORTEX.AGENT` | Using SQL instead of REST API | No SQL function exists. Use REST POST to `/agents/{name}:run` -- see Calling the Agent section |
+| `SSL: CERTIFICATE_VERIFY_FAILED` | Underscores in account name | Replace `_` with `-` in hostname: `account.replace('_', '-')` |
 | 404 Not Found | Wrong endpoint path | Use `/agents/` not `/cortex-agents/` |
 | Missing execution environment | No warehouse config for Analyst | Add `execution_environment` block |
 | Technical difficulties | Search id_column not in SELECT | Include id_column in search service source query |
 | Agent not found | Wrong database/schema in URL | Verify fully qualified path matches CREATE AGENT location |
 | Tool not responding | Underlying service down | Check semantic model validity, search service status |
+| Agent responds but chat shows fallback | SSE `event:` lines not parsed | Ensure backend parses both `event:` and `data:` SSE lines -- see Response Format section |
 
 ## Contract
 
