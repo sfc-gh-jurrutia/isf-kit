@@ -28,7 +28,6 @@ Rules:
 
 import os
 import sys
-import csv
 import json
 import uuid
 import random
@@ -39,6 +38,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
 import yaml
 from faker import Faker
 
@@ -251,14 +252,12 @@ class EntityGenerator:
         return max(1, int(base_count * multiplier))
 
 
-def save_csv(rows: List[Dict], path: Path) -> int:
+def save_parquet(rows: List[Dict], path: Path) -> int:
     if not rows:
         return 0
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
-        writer.writeheader()
-        writer.writerows(rows)
+    table = pa.Table.from_pylist(rows)
+    pq.write_table(table, path, compression='snappy')
     return len(rows)
 
 
@@ -287,7 +286,7 @@ def main():
     parser.add_argument("--behavior-profiles",
                         help="Path to behavior-profiles.yaml")
     parser.add_argument("--output", "-o", default="src/data_engine/output",
-                        help="Output directory for CSV files")
+                        help="Output directory for Parquet files")
     parser.add_argument("--entity", "-e",
                         help="Generate a single entity only")
     parser.add_argument("--quick", "-q", action="store_true",
@@ -333,8 +332,8 @@ def main():
         print(f"  Generating {entity_name}: {count:,} rows...", end=" ")
 
         rows = gen.generate_entity(entity_name, count)
-        path = output_dir / f"{entity_name.lower()}.csv"
-        written = save_csv(rows, path)
+        path = output_dir / f"{entity_name.lower()}.parquet"
+        written = save_parquet(rows, path)
 
         print(f"[OK] {written:,} rows -> {path}")
 

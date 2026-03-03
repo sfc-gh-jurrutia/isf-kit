@@ -131,7 +131,7 @@ Where should we start?
 
 **Actions:**
 1. Follow the data generation workflow (LOAD ENTITIES → PLAN → SELECT MODE → GENERATE → VALIDATE)
-2. Output: seed CSVs in `src/data_engine/output/`, `manifest.json`
+2. Output: seed Parquet files in `src/data_engine/output/`, `manifest.json`
 
 **⚠️ MANDATORY CHECKPOINT**: Verify hidden discovery is present in generated data.
 

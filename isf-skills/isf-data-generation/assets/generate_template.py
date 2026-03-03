@@ -6,7 +6,7 @@ Usage:
     python generate_all.py
 
 Output:
-    src/data_engine/output/{entity}.csv
+    src/data_engine/output/{entity}.parquet
     src/data_engine/output/manifest.json
 """
 
@@ -58,8 +58,8 @@ def random_date(start_year: int = 2023, end_year: int = 2025) -> str:
 
 
 def save_entity(df: pd.DataFrame, name: str) -> dict:
-    path = OUTPUT_DIR / f"{name}.csv"
-    df.to_csv(path, index=False)
+    path = OUTPUT_DIR / f"{name}.parquet"
+    df.to_parquet(path, index=False, engine="pyarrow", compression="snappy")
     return {"entity": name, "rows": len(df), "file": str(path)}
 
 

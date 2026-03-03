@@ -31,7 +31,7 @@ Run this skill after `isf-solution-testing` passes all layers. This is the final
 |-------|---------|
 | `deploy/setup.sql` exists | Infrastructure provisioning script present |
 | `src/database/migrations/` has V*.sql files | schemachange migrations present |
-| `src/data_engine/output/` has CSVs + manifest.json | Seed data pre-generated and committed |
+| `src/data_engine/output/` has Parquet files + manifest.json | Seed data pre-generated and committed |
 | `src/ui/package.json` exists | React app present |
 | `api/app/main.py` exists | FastAPI backend present |
 | `deploy/spcs/Dockerfile` exists | SPCS deployment ready |

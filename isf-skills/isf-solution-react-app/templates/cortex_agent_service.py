@@ -30,6 +30,16 @@ router = APIRouter()
 # Configuration
 # ============================================================================
 
+def _normalize_account_url(url: str) -> str:
+    """Snowflake SSL certs use hyphens, not underscores, in account hostnames."""
+    from urllib.parse import urlparse, urlunparse
+    parsed = urlparse(url)
+    if parsed.hostname and "_" in parsed.hostname:
+        normalized = parsed._replace(netloc=parsed.hostname.replace("_", "-"))
+        return urlunparse(normalized)
+    return url
+
+
 class CortexAgentConfig:
     """Configuration for Cortex Agent connection"""
     
@@ -41,14 +51,14 @@ class CortexAgentConfig:
         agent_name: str = "MY_AGENT",
         warehouse: str = "COMPUTE_WH",
     ):
-        self.account_url = account_url or os.getenv("SNOWFLAKE_ACCOUNT_URL")
+        raw_url = account_url or os.getenv("SNOWFLAKE_ACCOUNT_URL")
+        if not raw_url:
+            raise ValueError("SNOWFLAKE_ACCOUNT_URL environment variable required")
+        self.account_url = _normalize_account_url(raw_url)
         self.database = os.getenv("CORTEX_AGENT_DATABASE", database)
         self.schema = os.getenv("CORTEX_AGENT_SCHEMA", schema)
         self.agent_name = os.getenv("CORTEX_AGENT_NAME", agent_name)
         self.warehouse = os.getenv("SNOWFLAKE_WAREHOUSE", warehouse)
-        
-        if not self.account_url:
-            raise ValueError("SNOWFLAKE_ACCOUNT_URL environment variable required")
     
     @property
     def agent_endpoint(self) -> str:
@@ -218,14 +228,12 @@ def _get_threads_endpoint() -> str:
 @router.post("/threads", response_model=ThreadResponse)
 async def create_thread() -> ThreadResponse:
     """Create a new conversation thread for multi-turn chat"""
-    config = get_config()
-    
     client = _get_http_client()
     try:
         response = await client.post(
-            config.threads_endpoint,
+            _get_threads_endpoint(),
             headers={
-                **get_auth_headers(),
+                **get_auth_headers_cached(),
                 "Content-Type": "application/json",
             },
             json={"origin_application": "react_chat_widget"},
@@ -254,8 +262,6 @@ async def chat(request: ChatRequest) -> ChatResponse:
     
     Creates a thread automatically if not provided.
     """
-    config = get_config()
-    
     # Create thread if not provided
     thread_id = request.thread_id
     if not thread_id:
@@ -282,9 +288,9 @@ async def chat(request: ChatRequest) -> ChatResponse:
     client = _get_http_client()
     try:
         response = await client.post(
-            config.agent_endpoint,
+            _get_agent_endpoint(),
             headers={
-                **get_auth_headers(),
+                **get_auth_headers_cached(),
                 "Content-Type": "application/json",
             },
             json=payload,
@@ -357,21 +363,26 @@ async def chat(request: ChatRequest) -> ChatResponse:
 # Streaming Chat Endpoint
 # ============================================================================
 
+_SSE_EVENT_TYPE_MAP = {
+    "response.output.delta": "text",
+    "response.text.delta": "text",
+    "response.thinking.delta": "thinking",
+}
+
+
 def map_cortex_event(event: Dict[str, Any]) -> Dict[str, Any]:
     """
     Map Cortex Agent events to standardized format for frontend.
-    
-    Cortex Agent SSE events are transformed into a consistent format
-    that the React components expect:
-    
-    Input event types from Cortex Agent:
-    - text / content_block_delta: Streaming text content
-    - tool_use_start: Tool execution begins
-    - tool_use_end: Tool execution completes
-    - tool_result: Tool results with SQL/data
-    - thinking: Agent reasoning process
-    - message_stop / done: End of message
-    
+
+    Snowflake SSE streams use a two-line format::
+
+        event: response.output.delta
+        data: {"text": "Hello..."}
+
+    The caller injects the SSE event type as ``_sse_event_type`` so this
+    function can resolve the correct mapping even when the JSON payload
+    has no ``type`` / ``event`` field of its own.
+
     Output event types for frontend:
     - text_delta: Incremental text with 'text' field
     - tool_start: Tool begins with name/type
@@ -381,12 +392,17 @@ def map_cortex_event(event: Dict[str, Any]) -> Dict[str, Any]:
     - message_complete: Final message with citations
     - error: Error event
     """
-    event_type = event.get("type") or event.get("event")
-    
-    if event_type in ["text", "content_block_delta"]:
+    sse_type = event.pop("_sse_event_type", "")
+    event_type = (
+        event.get("type")
+        or event.get("event")
+        or _SSE_EVENT_TYPE_MAP.get(sse_type)
+    )
+
+    if event_type in ("text", "content_block_delta"):
         text = event.get("text") or event.get("delta", {}).get("text", "")
         return {"event_type": "text_delta", "text": text}
-    
+
     if event_type == "tool_use_start":
         return {
             "event_type": "tool_start",
@@ -394,7 +410,7 @@ def map_cortex_event(event: Dict[str, Any]) -> Dict[str, Any]:
             "tool_type": event.get("tool_type", "custom"),
             "input": event.get("input"),
         }
-    
+
     if event_type == "tool_use_end":
         return {
             "event_type": "tool_end",
@@ -404,7 +420,7 @@ def map_cortex_event(event: Dict[str, Any]) -> Dict[str, Any]:
             "error": event.get("error"),
             "duration": event.get("duration"),
         }
-    
+
     if event_type == "tool_result":
         return {
             "event_type": "tool_result",
@@ -412,28 +428,28 @@ def map_cortex_event(event: Dict[str, Any]) -> Dict[str, Any]:
             "result": event.get("result") or event.get("data"),
             "sql": event.get("sql"),
         }
-    
+
     if event_type == "thinking":
         return {
             "event_type": "reasoning",
             "text": event.get("text"),
         }
-    
-    if event_type in ["message_stop", "done"]:
+
+    if event_type in ("message_stop", "done"):
         return {
             "event_type": "message_complete",
             "message_id": event.get("message_id"),
             "thread_id": event.get("thread_id"),
             "citations": event.get("citations", []),
         }
-    
+
     if event_type == "error":
         return {
             "event_type": "error",
             "error": event.get("error") or event.get("message"),
             "code": event.get("code"),
         }
-    
+
     return event
 
 
@@ -454,8 +470,6 @@ async def stream_agent_response(
     - message_complete: Final message with metadata
     - error: Error events
     """
-    config = get_config()
-    
     payload = {
         "thread_id": thread_id,
         "parent_message_id": parent_message_id,
@@ -477,9 +491,9 @@ async def stream_agent_response(
     try:
         async with client.stream(
             "POST",
-            config.agent_endpoint,
+            _get_agent_endpoint(),
             headers={
-                **get_auth_headers(),
+                **get_auth_headers_cached(),
                 "Content-Type": "application/json",
                 "Accept": "text/event-stream",
             },
@@ -487,17 +501,29 @@ async def stream_agent_response(
             timeout=120.0,
         ) as response:
             response.raise_for_status()
-            
+
+            # Snowflake SSE uses two-line format:
+            #   event: response.output.delta
+            #   data: {"text": "..."}
+            # We track the current event type so map_cortex_event can resolve it.
+            current_sse_event = ""
+
             async for line in response.aiter_lines():
-                if line.startswith("data: "):
-                    event_data = line[6:]
+                if line.startswith("event:"):
+                    current_sse_event = line[6:].strip()
+                    continue
+
+                if line.startswith("data:"):
+                    event_data = line[5:].strip()
                     if event_data == "[DONE]":
                         yield f"data: [DONE]\n\n"
                         break
                     
                     try:
                         event = json.loads(event_data)
+                        event["_sse_event_type"] = current_sse_event
                         mapped = map_cortex_event(event)
+                        current_sse_event = ""
 
                         # Deduplicate cumulative text_delta events
                         if mapped.get("event_type") == "text_delta":
@@ -558,6 +584,7 @@ async def run_agent_streaming(request: ChatRequest):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
             "X-Thread-Id": thread_id,
         },
     )
@@ -582,6 +609,39 @@ async def health_check():
             "status": "unhealthy",
             "error": str(e),
         }
+
+
+# ============================================================================
+# Warmup
+# ============================================================================
+
+@router.get("/warmup")
+async def warmup():
+    """
+    Readiness probe for Cortex Agent subsystem.
+
+    Exercises the Snowflake connection pool (SELECT 1) and ensures the
+    persistent HTTP client is initialized so the first real request is fast.
+    """
+    errors = []
+    try:
+        from snowflake_conn import get_connection, return_connection
+        conn = get_connection()
+        try:
+            conn.cursor().execute("SELECT 1")
+        finally:
+            return_connection(conn)
+    except Exception as e:
+        errors.append(f"pool: {e}")
+
+    try:
+        _get_http_client()
+    except Exception as e:
+        errors.append(f"http_client: {e}")
+
+    if errors:
+        return {"status": "cold", "errors": errors}
+    return {"status": "warm"}
 
 
 # ============================================================================

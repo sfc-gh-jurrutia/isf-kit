@@ -16,6 +16,17 @@ description: >
 
 Load this skill when generating any visual output: React apps, notebooks, charts, or documentation. Provides the canonical design tokens and component classes that all ISF solutions share.
 
+## Design Philosophy
+
+Every generated interface should feel **modern, minimal, and production-ready** -- not like a template. These six principles govern all visual decisions.
+
+1. **Restraint over decoration.** Fewer elements, highly refined. White space is a feature, not wasted space.
+2. **Typography carries hierarchy.** Maximize weight contrast between headings and body text. Consistent sizing across heading levels (h1 -> h2 -> h3).
+3. **One strong color moment.** Dark neutral backgrounds first. Introduce one confident accent (`--snowflake-blue` or persona accent). If a color could appear on a poster, it's probably timeless.
+4. **Spacing is structure.** Use an 8 px grid via design tokens. Tighter gaps group related elements; generous gaps let hero content breathe.
+5. **Accessibility is non-negotiable.** WCAG AA contrast minimums. Focus indicators. Semantic HTML. Keyboard navigation. See the Accessibility section below.
+6. **No generic AI aesthetics.** Avoid: purple-on-white gradients, default system fonts, evenly-spaced card grids with no visual hierarchy, and cookie-cutter layouts. Every interface should feel designed for its specific domain.
+
 ## Theme Selection
 
 Read the solution archetype from `plan.md` and apply the appropriate theme:
@@ -32,6 +43,29 @@ Read the solution archetype from `plan.md` and apply the appropriate theme:
 Set theme on `<html>`: `<html data-theme="dark">` or `<html data-theme="light">`.
 
 If the user or plan specifies a theme preference, that overrides the archetype default.
+
+## Design Direction
+
+Beyond dark/light theme, each archetype has an aesthetic direction that guides spacing, density, and visual personality. Select the direction that best matches the user's intent, or ask if unclear.
+
+| Direction | When to use | Key traits |
+|-----------|------------|------------|
+| **Data Dashboard** (default) | AI copilot, operational dashboard, predictive analytics | Data-dense, optimized for scannability, consistent vertical alignment, clear metric hierarchy: KPI -> trend -> detail |
+| **Enterprise** | Self-service analytics, knowledge assistant, internal tools | Information-dense, well-defined regions, compact spacing scale (4/8/12/16/24 px), robust form handling, fully keyboard-navigable |
+| **Modern SaaS** | Customer-facing portals, onboarding flows | Neutral palette, one strong accent, 8 px grid, generous white space, clean and professional |
+| **Apple Minimal** | Executive dashboards, presentation-oriented views | Near-monochrome, warm grays, large type hierarchy, abundant white space, micro-interactions (150-250 ms ease-out) |
+| **Creative** | Marketing demos, portfolio showcases | Bold, expressive, strong visual personality, asymmetric layouts, dramatic scale contrast, editorial typography |
+
+Most ISF solutions use **Data Dashboard** direction. Map from archetypes:
+
+| Archetype | Theme | Direction |
+|-----------|-------|-----------|
+| AI Copilot | Dark | Data Dashboard |
+| Operational Dashboard | Dark | Data Dashboard |
+| Predictive Analytics | Dark | Data Dashboard |
+| Self-Service Analytics | Light | Enterprise |
+| Knowledge Assistant | Light | Modern SaaS |
+| Data Quality Monitor | Dark | Data Dashboard |
 
 ## Design Tokens (`assets/tokens.css`)
 

@@ -87,3 +87,18 @@ export type { Intervention, InterventionPanelProps } from './InterventionPanel';
 
 export { AgentSidebarPanel } from './AgentSidebarPanel';
 export type { AgentSidebarPanelProps } from './AgentSidebarPanel';
+
+export { KPIStrip, StatCard } from './KPIStrip';
+export type { KPI, KPIStripProps, StatCardProps } from './KPIStrip';
+
+export { EntityDataTable } from './EntityDataTable';
+export type { ColumnDef, EntityDataTableProps } from './EntityDataTable';
+
+export { RiskFactorPanel } from './RiskFactorPanel';
+export type { RiskFactor, FactorSeverity, RiskFactorPanelProps } from './RiskFactorPanel';
+
+export { FeatureImportanceChart } from './FeatureImportanceChart';
+export type { FeatureImportance, FeatureImportanceChartProps } from './FeatureImportanceChart';
+
+export { DetailSection } from './DetailSection';
+export type { DetailSectionProps } from './DetailSection';
