@@ -259,8 +259,13 @@ api/                             # FastAPI backend
 4. IMPLEMENT BACKEND
    └── **MUST** copy ALL backend templates (verify each exists in api/app/):
        main.py, snowflake_conn.py, backend_patterns.py, cortex_agent_service.py
-   └── Configure env vars: SNOWFLAKE_ACCOUNT_URL, CORTEX_AGENT_DATABASE,
-       CORTEX_AGENT_SCHEMA, CORTEX_AGENT_NAME
+   └── **SELECT Snowflake connection** for local development:
+       Run: `cat ~/.snowflake/connections.toml | grep '^\['`
+       Present the list of connection names to the user.
+       User selects one. Write to `api/.env`:
+         `SNOWFLAKE_CONNECTION_NAME=<selected>`
+   └── Configure remaining env vars in `api/.env`: SNOWFLAKE_ACCOUNT_URL,
+       CORTEX_AGENT_DATABASE, CORTEX_AGENT_SCHEMA, CORTEX_AGENT_NAME
    └── Create domain data endpoints in routers/ using backend_patterns.py helpers
    └── Run `rules/sf-backend-checklist.md` — all 8 items must pass
 

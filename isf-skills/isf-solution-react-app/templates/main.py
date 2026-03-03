@@ -21,9 +21,14 @@ Usage:
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Load api/.env for local dev; SPCS container env vars take precedence.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 from snowflake_conn import get_connection, return_connection, close_pool
 from cortex_agent_service import router as agent_router, _get_http_client
