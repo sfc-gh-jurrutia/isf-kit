@@ -1,9 +1,9 @@
-# Legacy alias for the Semantic View spec template.
-# Prefer assets/semantic_view.yaml for new work.
+# Cortex Analyst Semantic View Spec Template
+# Replace placeholders and customize for your use case
 
-name: my_semantic_model
+name: my_semantic_view
 description: >
-  Semantic model for [business domain] analytics.
+  Semantic View spec for [business domain] analytics.
 
 tables:
   - name: main_table
@@ -74,4 +74,3 @@ verified_queries:
 custom_instructions: >
   When the user asks for "recent" data without specifying a date range,
   default to the last 30 days using the last_30_days filter.
-

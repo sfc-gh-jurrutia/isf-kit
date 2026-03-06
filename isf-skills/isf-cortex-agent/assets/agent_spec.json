@@ -1,38 +1,132 @@
 {
   "models": {
-    "orchestration": "auto"
+    "orchestration": "claude-sonnet-4-5"
+  },
+  "profile": {
+    "display_name": "{PERSONA_ROLE}"
+  },
+  "orchestration": {
+    "budget": {
+      "seconds": 30,
+      "tokens": 16000
+    }
+  },
+  "instructions": {
+    "response": "{PERSONA_RESPONSE_TONE}",
+    "orchestration": "{PERSONA_TOOL_ROUTING}",
+    "system": "You are a {DOMAIN} copilot for {PERSONA_ROLE}. {PERSONA_CONTEXT}",
+    "sample_questions": [
+      {
+        "question": "{PERSONA_SAMPLE_Q1}",
+        "answer": "{PERSONA_SAMPLE_A1}"
+      }
+    ]
   },
   "tools": [
     {
       "tool_spec": {
         "type": "cortex_analyst_text_to_sql",
-        "name": "ANALYTICS_TOOL",
-        "description": "Query structured data using natural language. Use for metrics, aggregations, and data analysis questions."
+        "name": "{ANALYST_TOOL_NAME}",
+        "description": "Query structured data using natural language. Use for metrics, aggregations, trends. Do NOT use for document lookups or actions."
       }
     },
     {
       "tool_spec": {
         "type": "cortex_search",
-        "name": "DOC_SEARCH",
-        "description": "Search documents and knowledge base. Use for how-to, configuration, and troubleshooting questions."
+        "name": "{SEARCH_TOOL_NAME}",
+        "description": "Search documents and knowledge base. Use for how-to, policy, procedures. Do NOT use for data queries or actions."
+      }
+    },
+    {
+      "tool_spec": {
+        "type": "data_to_chart",
+        "name": "data_to_chart",
+        "description": "Generate visualizations from data"
+      }
+    },
+    {
+      "tool_spec": {
+        "type": "generic",
+        "name": "{ACTION_TOOL_NAME}",
+        "description": "{ACTION_TOOL_DESCRIPTION}. Use when user asks to notify, alert, escalate, or take action.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "entity_id": {
+              "type": "string",
+              "description": "The entity this action applies to"
+            },
+            "message": {
+              "type": "string",
+              "description": "Action details or message text"
+            }
+          },
+          "required": ["entity_id"]
+        }
+      }
+    },
+    {
+      "tool_spec": {
+        "type": "generic",
+        "name": "{ML_TOOL_NAME}",
+        "description": "{ML_TOOL_DESCRIPTION}. Use for predict, forecast, score, classify questions.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "entity_id": {
+              "type": "string",
+              "description": "The entity to score or predict"
+            }
+          },
+          "required": ["entity_id"]
+        }
       }
     }
   ],
   "tool_resources": {
-    "ANALYTICS_TOOL": {
-      "semantic_model_file": "@DB.SCHEMA.MODELS/semantic_model.yaml",
+    "{ANALYST_TOOL_NAME}": {
+      "semantic_view": "{DATABASE}.{SCHEMA}.{SEMANTIC_VIEW}",
       "execution_environment": {
         "type": "warehouse",
-        "warehouse": "AGENT_WH",
+        "warehouse": "{WAREHOUSE}",
         "query_timeout": 300
       }
     },
-    "DOC_SEARCH": {
-      "search_service": "DB.SCHEMA.DOC_SEARCH_SVC",
+    "{SEARCH_TOOL_NAME}": {
+      "search_service": "{DATABASE}.{SCHEMA}.{SEARCH_SVC}",
       "id_column": "CHUNK_ID",
       "title_column": "RELATIVE_PATH",
-      "max_results": 5
+      "max_results": 5,
+      "columns_and_descriptions": {
+        "TEXT": {
+          "description": "Main text content of the document",
+          "type": "string",
+          "searchable": true,
+          "filterable": false
+        },
+        "CATEGORY": {
+          "description": "Document category. Values include: policy, guide, reference.",
+          "type": "string",
+          "searchable": false,
+          "filterable": true
+        }
+      }
+    },
+    "{ACTION_TOOL_NAME}": {
+      "type": "procedure",
+      "execution_environment": {
+        "type": "warehouse",
+        "warehouse": "{WAREHOUSE}"
+      },
+      "identifier": "{DATABASE}.{SCHEMA}.{ACTION_PROCEDURE}"
+    },
+    "{ML_TOOL_NAME}": {
+      "type": "function",
+      "execution_environment": {
+        "type": "warehouse",
+        "warehouse": "{WAREHOUSE}"
+      },
+      "identifier": "{DATABASE}.{SCHEMA}.{ML_UDF}"
     }
   }
 }
-

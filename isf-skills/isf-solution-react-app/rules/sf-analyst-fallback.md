@@ -66,6 +66,6 @@ def direct_sql_query(self, question: str) -> Dict[str, Any]:
 ## Why
 
 - Cortex Analyst may be unavailable or misconfigured
-- Some queries may not match semantic model
+- Some queries may not match the deployed Semantic View
 - Fallback provides consistent user experience
 - Pattern matching handles common queries reliably

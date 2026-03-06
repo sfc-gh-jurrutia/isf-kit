@@ -337,12 +337,12 @@ Even though this is chat-primary, it must NOT be just a chat box:
 
 The `isf-solution-react-app` workflow Step 3 (IMPLEMENT PAGES) must:
 
-1. **Read** the archetype from `plan.md`
-2. **Select** the corresponding page template from this reference
+1. **Read** the page template from `plan.md`
+2. **Validate** that template against this reference
 3. **Verify** every **(REQUIRED)** zone has a component before proceeding
 4. **Present** the zone-to-component mapping for user review
 
-If `plan.md` does not specify an archetype, default to **CommandCenter**.
+If `plan.md` does not specify a page template, stop and return to planning. Do not silently default to `CommandCenter`.
 
 If the solution has multiple pages (e.g., overview + detail), each page must use one of these templates. Navigation between pages uses sidebar nav or header tabs -- each destination page follows its assigned template.
 
@@ -363,3 +363,94 @@ Each page must be assigned a template:
 | Settings / Config | AnalyticsExplorer (simplified) |
 
 The primary landing page (first nav item) should ALWAYS be the most data-rich page, typically CommandCenter. Chat-only pages should never be the default landing.
+
+---
+
+## Persona-Page Mapping (Multi-Persona Solutions)
+
+When the solution serves multiple personas, each persona gets a dedicated page with a tailored template variant and its own `AgentSidebarPanel` connected to that persona's agent.
+
+### Persona → Page Mapping
+
+| Persona Level | Template | Variant | Route | Layout Focus | Agent Sidebar |
+|---|---|---|---|---|---|
+| **Strategic** (VP/Director) | CommandCenter | aggregate | `/strategic` | Portfolio KPIs, aggregate trends, executive summary cards | Sidebar with strategic agent, sample questions about portfolio metrics |
+| **Operational** (Manager) | CommandCenter | full | `/operational` | Entity-level monitoring, alerts, risk factors, action tools | Sidebar with operational agent, entity context injection |
+| **Technical** (Analyst) | AnalyticsExplorer + Agent | hybrid | `/technical` | Deep analytics, ML explainability, model outputs, filters | Sidebar with technical agent, model-specific queries |
+
+### Route Structure
+
+```
+/                    → Redirect to /operational (default landing)
+/strategic           → Strategic persona page
+/operational         → Operational persona page
+/technical           → Technical persona page
+```
+
+### Navigation
+
+Use sidebar navigation with persona icons. Each nav item shows:
+- Persona icon (Briefcase, Shield, Microscope)
+- Persona label
+- Active indicator dot
+
+```tsx
+const PERSONA_NAV = [
+  { path: '/strategic', label: 'Strategic', icon: Briefcase },
+  { path: '/operational', label: 'Operations', icon: Shield },
+  { path: '/technical', label: 'Technical', icon: Microscope },
+]
+```
+
+### CommandCenter Aggregate Variant
+
+The **aggregate** variant differs from the standard CommandCenter:
+
+| Zone | Standard | Aggregate |
+|------|----------|-----------|
+| KPI Strip | Entity-level metrics | Portfolio-level rollups (totals, averages, trends) |
+| Data Table | Individual entities | Grouped/summarized view (by region, category, status) |
+| Detail Section | Single entity drill-down | Segment drill-down (click a row to see breakdown) |
+| Charts | Entity-specific | Distribution charts, trend lines, comparative bars |
+
+### AnalyticsExplorer + Agent Hybrid
+
+The **hybrid** variant adds an agent sidebar to AnalyticsExplorer:
+
+```
++-----------------------------------------------------------+-------------------+
+| Header: App title, search bar, export button              | AGENT SIDEBAR     |
++-----------------------------------------------------------| (resizable)       |
+| KPI Strip: 4-8 stat cards                                 |                   |
++-----------------------------------------------------------| [Chat] [Workflow] |
+| Filter Panel (collapsible left)  | Main Content Area      |                   |
+| - Model selector                 | - Full-width data table| Agent messages    |
+| - Feature filters                | - SHAP visualizations  | with ML context   |
+| - Threshold sliders              | - Prediction outputs   |                   |
++----------------------------------+------------------------+ Prompt input      |
+| Detail Section (slide-up on select):                      |                   |
+| - Model performance, calibration curves, feature impact   |                   |
++-----------------------------------------------------------+-------------------+
+```
+
+The agent sidebar replaces the right filter panel from standard AnalyticsExplorer. Filter controls move to a collapsible left panel.
+
+### Per-Page Agent Configuration
+
+Each persona page creates its own `AgentSidebarPanel` with persona-specific props:
+
+```tsx
+<AgentSidebarPanel
+  pendingPrompt={pendingPrompt}
+  onClearPendingPrompt={() => setPendingPrompt(null)}
+  persona="operational"
+  agentEndpoint="/api/agent/run"
+  sampleQuestions={[
+    "Which entities are at highest risk right now?",
+    "Alert my team about the critical items",
+    "What's the recommended action for Entity-123?",
+  ]}
+/>
+```
+
+Each page manages its own thread independently -- navigating between persona pages does NOT share conversation history.

@@ -26,6 +26,7 @@ A populated `isf-context.md` in `specs/{solution}/`. At minimum needs:
 - Industry and customer context (T1 fields)
 - At least one business objective
 - Snowflake features identified
+- `isf_context.solution_archetype`
 
 If the spec is incomplete, direct the user to run `isf-spec-curation` first.
 
@@ -44,14 +45,17 @@ Example tasks.md entry:
 1. LOAD SPEC
    └── Read isf-context.md from specs/{solution}/
    └── Validate T1 fields are populated
-   └── Extract architecture, features, personas, data model
+   └── Validate `isf_context.solution_archetype` is set
+   └── Extract architecture, features, personas, data model, runtime contract
 
 2. PLAN ARCHITECTURE
+   └── Treat `isf_context.solution_archetype` as the upstream source of truth
    └── Map Snowflake features (FT-xxx) to implementation components
    └── Design data flow: source → landing → transform → curated
    └── Select Cortex features based on use cases (UC-xxx)
    └── Define API surface (FastAPI endpoints)
    └── **PLAN UI STRATEGY** (REQUIRED — see section below)
+   └── Define the shared runtime env contract for local dev + SPCS deployment
    └── Generate architecture diagram (Mermaid)
    ⚠️ STOP: Present architecture plan (including UI strategy) for review before task breakdown.
 
@@ -66,6 +70,8 @@ Example tasks.md entry:
    └── Create project directory from standard structure
    └── Generate Makefile with project-specific targets
    └── Create deploy/setup.sql from architecture plan
+   └── Create `.env.example` from `implementation.runtime_contract`
+   └── Create `specs/{solution}/pipeline-state.yaml` with Phase 2 marked complete
    └── Populate docs/ with architecture spec stubs
    └── Initialize schemachange migrations directory
 
@@ -115,14 +121,14 @@ When planning, match the user's requirements to a known archetype. Each archetyp
 
 | Archetype | Description | Key Skills Activated | Cortex Features |
 |-----------|-------------|---------------------|----------------|
-| **AI Copilot** | Chat-first UI with multi-tool agent, RAG search, analytics | All Cortex skills + React or Streamlit | Agent, Analyst, Search |
-| **Operational Dashboard** | Real-time monitoring with alerts, KPIs, parameter tracking | Data arch, React (command center), deployment | Analyst (optional) |
-| **Predictive Analytics** | ML models with explainability, what-if scenarios | ML models, notebook, data arch, React or Streamlit | Analyst, Agent (optional) |
-| **Data Quality Monitor** | Validation rules, anomaly detection, lineage tracking | Data arch, data gen, testing, deployment | LLM functions (optional) |
+| **AI Copilot** | Chat-first UI with multi-tool agent, RAG search, analytics | All Cortex skills + React | Agent, Analyst, Search |
+| **Operational Dashboard** | Real-time monitoring with alerts, KPIs, parameter tracking | Data arch, React, **Agent**, deployment | Agent, Analyst |
+| **Predictive Analytics** | ML models with explainability, what-if scenarios | ML models, notebook, data arch, **Agent**, React | Agent, Analyst |
+| **Data Quality Monitor** | Validation rules, anomaly detection, lineage tracking | Data arch, data gen, testing, deployment | Agent (optional) |
 | **Self-Service Analytics** | Semantic model for natural-language SQL, no custom UI | Data arch, Cortex Analyst, deployment | Analyst |
-| **Knowledge Assistant** | Document search with RAG, domain knowledge base | Industry context, Cortex Search, Agent, Streamlit | Search, Agent |
+| **Knowledge Assistant** | Document search with RAG, domain knowledge base | Industry context, Cortex Search, Agent, React | Search, Agent |
 
-**Record the chosen archetype in `plan.md`** — it determines which skills run and in what order.
+**Record the chosen archetype in `plan.md` exactly as written in `isf-context.md`** — it determines which skills run and in what order. Downstream skills consume this choice; they do not re-decide it.
 
 ### Archetype → Skill Activation
 
@@ -130,14 +136,14 @@ When planning, match the user's requirements to a known archetype. Each archetyp
 AI Copilot (most skills):
   data-arch → data-gen → industry-context → cortex-analyst → cortex-search → ml-models → cortex-agent → react-app → deployment
 
-Operational Dashboard (fewer skills):
-  data-arch → data-gen → cortex-analyst (optional) → react-app → deployment
+Operational Dashboard:
+  data-arch → data-gen → cortex-analyst → cortex-agent → react-app → deployment
 
 Predictive Analytics:
-  data-arch → data-gen → ml-models → cortex-analyst (ML view) → cortex-agent (optional) → react-app or streamlit → deployment
+  data-arch → data-gen → ml-models → cortex-analyst (ML view) → cortex-agent → react-app → deployment
 
 Knowledge Assistant:
-  data-arch → industry-context → cortex-search → cortex-agent → streamlit → deployment
+  data-arch → industry-context → cortex-search → cortex-agent → react-app → deployment
 ```
 
 ### Task Parallelism
@@ -171,7 +177,7 @@ Transform Layer (src/database/migrations/ — silver/cleansed views + procs)
   ↓
 Curated Layer (src/database/migrations/ — gold/data mart)
   ↓
-Cortex Layer (src/database/cortex/ — agent, semantic model, search)
+Cortex Layer (src/database/cortex/ — agent, Semantic View specs, search)
   ↓
 API Layer (api/ — FastAPI endpoints proxying Cortex)
   ↓
@@ -182,7 +188,7 @@ UI Layer (src/ui/ — React consuming API)
 
 | Need | Component | ISF Skill |
 |------|-----------|-----------|
-| Natural language to SQL | Cortex Analyst + Semantic Model | `isf-cortex-analyst` |
+| Natural language to SQL | Cortex Analyst + Semantic Views | `isf-cortex-analyst` |
 | Document search / RAG | Cortex Search Service | `isf-cortex-search` |
 | Multi-tool AI orchestration | Cortex Agent | `isf-cortex-agent` |
 | Text classification, summarization | Cortex LLM Functions | Inline (no dedicated skill) |
@@ -203,6 +209,7 @@ All ISF solutions use React + FastAPI deployed to SPCS.
 ## UI Strategy (REQUIRED in plan.md)
 
 Every `plan.md` MUST include a **UI Strategy** section. This section is consumed by `isf-solution-react-app` to enforce data-rich layouts and prevent chat-only UIs. Omitting this section is a planning failure.
+Planning is the sole owner of page-template, route, and activation-path decisions.
 
 ### What to Specify
 
@@ -214,6 +221,7 @@ Every `plan.md` MUST include a **UI Strategy** section. This section is consumed
 | **Chart assignments** | Which visualizations to include and their data sources | `RiskFactorPanel` from factor decomposition view; `FeatureImportanceChart` from ML.GLOBAL_FEATURE_IMPORTANCE |
 | **Detail section panels** | What appears on entity drill-down | Risk factors, weather impact, SHAP explainability |
 | **Agent sidebar** | Whether agent sidebar is included, what tools it exposes | Yes -- Cortex Agent with Analyst + Search tools |
+| **Runtime contract** | Local env vars, SPCS env vars, persona-to-agent env mapping | `CORTEX_AGENT_PERSONA_OPERATIONAL=MY_SOLUTION_OPERATIONAL_AGENT` |
 
 ### Template for plan.md
 
@@ -261,13 +269,39 @@ Every `plan.md` MUST include a **UI Strategy** section. This section is consumed
 | Archetype | Template | Min KPIs | Data Table | Charts | Agent |
 |-----------|----------|----------|------------|--------|-------|
 | AI Copilot | CommandCenter | 4 | Required | 2 | Required |
-| Operational Dashboard | CommandCenter | 6 | Required | 3 | Optional |
+| Operational Dashboard | CommandCenter | 6 | Required | 3 | Required |
 | Predictive Analytics | CommandCenter | 4 | Required | 2 (inc. ML) | Required |
-| Data Quality Monitor | AnalyticsExplorer | 4 | Required | 2 | None |
+| Data Quality Monitor | AnalyticsExplorer | 4 | Required | 2 | Optional |
 | Self-Service Analytics | AnalyticsExplorer | 4 | Required | 1 | None |
-| Knowledge Assistant | AssistantLayout | 0 | Optional | 0 | N/A |
+| Knowledge Assistant | AssistantLayout | 0 | Optional | 0 | Required |
 
 If the archetype is AI Copilot, Operational Dashboard, or Predictive Analytics but the UI Strategy specifies fewer than 4 KPIs or no data table, **reject the plan** and add the missing elements before proceeding.
+If `plan.md` omits the page template or runtime contract, **reject the plan** and fill those fields before any app or deploy work begins.
+
+### PLAN PERSONA PAGES (Multi-Persona Solutions)
+
+When the solution has multiple personas (Strategic, Operational, Technical), plan separate pages for each persona. Map each persona's STAR "Situation" to a page template and route.
+
+| Persona Level | Page Template | Variant | Route | Layout Focus |
+|---|---|---|---|---|
+| Strategic | CommandCenter | aggregate | `/strategic` | Portfolio-level KPIs, trends, executive summary |
+| Operational | CommandCenter | full | `/operational` | Entity-level monitoring, alerts, action tools |
+| Technical | AnalyticsExplorer + Agent | hybrid | `/technical` | Deep analytics, ML explainability, model outputs |
+
+Each persona page gets its own `AgentSidebarPanel` configured with the persona's agent. The default landing page is the Operational page (most common user).
+
+**Add to plan.md UI Strategy:**
+
+```markdown
+### Persona Pages
+| Persona | Route | Template | Agent |
+|---------|-------|----------|-------|
+| Strategic (VP) | /strategic | CommandCenter aggregate | {SOLUTION}_STRATEGIC_AGENT |
+| Operational (Manager) | /operational | CommandCenter full | {SOLUTION}_OPERATIONAL_AGENT |
+| Technical (Analyst) | /technical | AnalyticsExplorer + Agent | {SOLUTION}_TECHNICAL_AGENT |
+```
+
+Navigation between persona pages uses sidebar nav with persona icons. Each page manages its own agent thread independently.
 
 ## Constraints
 
@@ -303,13 +337,25 @@ Key directories:
 | `tests/` | UI (Playwright), API (pytest), Data (dbt tests) |
 | `notebooks/` | Snowflake Notebooks (if ML component) |
 
+## Runtime Env Contract
+
+Every scaffolded project must carry one shared env contract from planning through deployment.
+
+| Surface | Required keys |
+|---------|---------------|
+| Local API runtime | `SNOWFLAKE_CONNECTION_NAME`, `CORTEX_AGENT_DATABASE`, `CORTEX_AGENT_SCHEMA`, persona mappings such as `CORTEX_AGENT_PERSONA_OPERATIONAL` |
+| SPCS runtime | `SNOWFLAKE_DATABASE`, `SNOWFLAKE_SCHEMA`, `SNOWFLAKE_WAREHOUSE`, persona mappings such as `CORTEX_AGENT_PERSONA_OPERATIONAL` |
+| Optional fallback | `CORTEX_AGENT_NAME` only for single-persona solutions; multi-persona solutions must use persona mappings |
+
 ## Pre-Flight Checklist
 
 Before starting implementation:
 
 - [ ] `isf-context.md` curated with T1 fields populated
+- [ ] `isf_context.solution_archetype` copied into `plan.md` without reinterpretation
 - [ ] Architecture plan reviewed (data flow, Cortex features, API surface)
 - [ ] **UI Strategy section in plan.md** — page template selected, KPIs defined, data table specified, charts assigned, detail section planned
+- [ ] Runtime env contract captured in `.env.example` and aligned with persona-agent outputs
 - [ ] Task breakdown ordered by dependency
 - [ ] Project scaffolded from standard structure
 - [ ] `deploy/setup.sql` created with database, schemas, roles
@@ -323,6 +369,7 @@ Before starting implementation:
 ## Stopping Points
 
 - After PLAN ARCHITECTURE: approve data flow, Cortex feature selection, API surface, and **UI strategy (page template, KPIs, charts, detail section)**
+- After PLAN ARCHITECTURE: approve runtime env contract and persona-to-agent mapping pattern
 - After BREAK DOWN TASKS: approve task list and skill assignments before scaffolding
 
 ## Output
@@ -331,7 +378,8 @@ Before starting implementation:
 specs/{solution}/
   ├── isf-context.md          # Input (from isf-spec-curation)
   ├── plan.md                 # Architecture plan with Mermaid diagrams + UI Strategy section
-  └── tasks.md                # Ordered task list with skill assignments
+  ├── tasks.md                # Ordered task list with skill assignments
+  └── pipeline-state.yaml     # Canonical resume state for isf-solution-engine
 
 {project}/                     # Scaffolded project directory
   ├── deploy/
@@ -350,6 +398,7 @@ specs/{solution}/
 
 **Outputs:**
 - `specs/{solution}/plan.md` — Architecture plan with Mermaid diagrams + **UI Strategy section** (consumed by all downstream skills, especially `isf-solution-react-app`)
+- `specs/{solution}/plan.md` — also carries the canonical page-template and runtime env decisions
 - `specs/{solution}/tasks.md` — Ordered task list with skill assignments (consumed by `isf-solution-engine`)
 - Scaffolded project directory (consumed by all build skills)
 
@@ -359,6 +408,8 @@ specs/{solution}/
 |-------|-----|
 | Spec is incomplete (missing T1 fields) | Direct user to `isf-spec-curation` to populate required fields |
 | Requirements don't fit any archetype | Ask user to clarify the primary use case; consider combining elements from multiple archetypes |
+| Archetype missing from spec | Stop and return to `isf-spec-curation`; planning must not infer a new archetype silently |
+| App skill wants to pick a different template | Reject the change unless the user approves a `plan.md` update first |
 | Scaffolding conflicts with existing files | Ask user if they want to overwrite or merge; back up existing files first |
 | Industry skills mapping unclear | Load the industry skill's SKILL.md and check its `provides:` field for capabilities |
 | Task dependencies are circular | Review the dependency graph; Cortex skills can run in parallel but Agent depends on all |

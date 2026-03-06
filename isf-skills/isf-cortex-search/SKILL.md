@@ -316,8 +316,8 @@ Specify in the `CREATE CORTEX SEARCH SERVICE` DDL. If omitted, Snowflake uses it
 ```
 src/database/cortex/
 ├── search_service.sql     # This skill's output
-├── semantic_model.yaml    # May reference this for high-cardinality dims (isf-cortex-analyst)
-└── agent.sql              # References this as a Search tool (isf-cortex-agent)
+├── semantic_views/        # Deployed as Snowflake Semantic Views by isf-cortex-analyst
+└── agent_{persona}.sql    # References this as a Search tool (isf-cortex-agent)
 ```
 
 ### Deployment Order
@@ -326,7 +326,7 @@ src/database/cortex/
 2. Chunks table created and populated
 3. Search service created (this skill)
 4. Referenced by Cortex Agent (by `isf-cortex-agent`)
-5. Or referenced by Semantic Model for high-cardinality resolution (by `isf-cortex-analyst`)
+5. Or referenced by a Semantic View spec for high-cardinality resolution (by `isf-cortex-analyst`)
 
 ## Contract
 

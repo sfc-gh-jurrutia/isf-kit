@@ -11,6 +11,10 @@ parent_skill: isf-solution-engine
 
 # ISF Deployment
 
+## When to Use / Load
+
+Load this skill after the project has passed the pre-deploy gate and is ready to turn migrations, Cortex objects, data, and app code into a running Snowflake deployment.
+
 ## Quick Start
 
 ### What Does This Skill Do?
@@ -55,7 +59,7 @@ make test            # Run all tests
 
 **When copying shell assets:** Replace `PROJECT_PREFIX="MY_PROJECT"` with the actual project name in all three scripts.
 
-## Core Workflow
+## Workflow
 
 ```
 1. VALIDATE PREREQUISITES
@@ -79,8 +83,9 @@ make test            # Run all tests
    └── Verify row counts
 
 5. DEPLOY CORTEX OBJECTS (if applicable)
-   └── Execute src/database/cortex/agent.sql
-   └── Deploy semantic model from src/database/cortex/semantic_model.yaml
+   └── Execute src/database/cortex/agent_{persona}.sql files
+   └── Execute src/database/cortex/grants.sql
+   └── Deploy Semantic View specs from src/database/cortex/semantic_views/*.yaml
    └── Create search service from src/database/cortex/search_service.sql
 
 6. DEPLOY APP TO SPCS
@@ -155,7 +160,25 @@ FILE_FORMAT = (TYPE = PARQUET)
 MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
 ```
 
-## Stage 4: App Deployment
+## Stage 4: Semantic Views and App Deployment
+
+### Semantic Views
+
+Semantic View YAML specs are version-controlled authoring artifacts. The runtime object is the deployed Snowflake Semantic View.
+
+```bash
+for spec in src/database/cortex/semantic_views/*.yaml; do
+  snow sql -q "CALL SYSTEM\$CREATE_SEMANTIC_VIEW_FROM_YAML('{DATABASE}.{SCHEMA}', \$\$$(< \"$spec\")\$\$, TRUE);" -c ${CONNECTION}
+done
+```
+
+Validate deployment:
+
+```bash
+snow sql -q "SHOW SEMANTIC VIEWS IN SCHEMA ${DATABASE}.${SCHEMA};" -c ${CONNECTION}
+```
+
+## Stage 5: App Deployment
 
 ### SPCS Deployment (React+FastAPI)
 
@@ -165,7 +188,7 @@ MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY src/ui/package*.json ./
-RUN npm ci
+RUN npm install --legacy-peer-deps
 COPY src/ui/ ./
 RUN npm run build
 
@@ -276,6 +299,30 @@ spec:
       public: true
 ```
 
+### SPCS Auto-Injected Environment Variables
+
+SPCS automatically injects these into every container -- do NOT set them in the service spec:
+
+| Variable | Value |
+|---|---|
+| `SNOWFLAKE_HOST` | Internal hostname for the account (use this, never hardcode a host) |
+| `SNOWFLAKE_ACCOUNT` | Account identifier |
+| `SNOWFLAKE_PORT` | Port number |
+
+You MUST set these in the service spec (not auto-injected):
+
+| Variable | Example | Notes |
+|---|---|---|
+| `SNOWFLAKE_DATABASE` | `MY_PROJECT` | Your project database |
+| `SNOWFLAKE_SCHEMA` | `CORTEX` | Schema for Cortex objects |
+| `SNOWFLAKE_WAREHOUSE` | `MY_PROJECT_WH` | Required -- queries fail without it |
+| `CORTEX_AGENT_DATABASE` | `MY_PROJECT` | Match the database containing agent DDL |
+| `CORTEX_AGENT_SCHEMA` | `CORTEX` | Match the schema containing agent DDL |
+| `CORTEX_AGENT_PERSONA_OPERATIONAL` | `MY_PROJECT_OPERATIONAL_AGENT` | Required for multi-persona solutions |
+
+The `snowflake_conn.py` template detects SPCS via `/snowflake/session/token` and uses OAuth automatically. Never use `connection_name` in SPCS -- there is no `~/.snowflake/connections.toml` in containers.
+Use `CORTEX_AGENT_NAME` only for single-persona solutions. Multi-persona solutions must use `CORTEX_AGENT_PERSONA_{PERSONA}` entries that match the generated `agent_{persona}.sql` files.
+
 ### Deployment Commands
 
 ```bash
@@ -286,7 +333,7 @@ snow sql -q "CREATE IMAGE REPOSITORY IF NOT EXISTS {REPO}" -c ${CONNECTION}
 REGISTRY=$(snow spcs image-repository url {REPO} -c ${CONNECTION})
 
 # Build and push
-docker build -t ${REGISTRY}/{IMAGE}:latest -f deploy/spcs/Dockerfile .
+docker build --platform linux/amd64 -t ${REGISTRY}/{IMAGE}:latest -f deploy/spcs/Dockerfile .
 docker push ${REGISTRY}/{IMAGE}:latest
 
 # Create compute pool
@@ -422,11 +469,18 @@ Auto-suspend is configured at creation (`--auto-suspend-secs 300`). For demo env
 - [ ] `deploy/setup.sql` creates database, schemas, roles, warehouse
 - [ ] `src/database/migrations/` has versioned DDL files
 - [ ] `src/data_engine/output/` has seed Parquet files with manifest.json
+- [ ] `src/database/cortex/` uses `agent_{persona}.sql` + `grants.sql` (no stale singular `agent.sql`)
 - [ ] `deploy/spcs/Dockerfile` builds successfully locally
 - [ ] `deploy/spcs/service-spec.yaml` has correct image path
 - [ ] Readiness probe configured on port 8080, path /health
+- [ ] Persona agent env vars in service spec match generated agent files
 - [ ] No hardcoded credentials in any file
 - [ ] Makefile targets configured for the project
+
+## Stopping Points
+
+- After VALIDATE PREREQUISITES: confirm the target environment before any destructive or irreversible deployment step
+- After DEPLOY APP TO SPCS: present the deployment summary, endpoint, and readiness results before moving to testing
 
 ## Troubleshooting
 
@@ -439,7 +493,18 @@ Auto-suspend is configured at creation (`--auto-suspend-secs 300`). For demo env
 | Service stuck PENDING | `snow spcs compute-pool status {pool}` | Check pool capacity, image exists |
 | Container crash loop | `snow spcs service logs {service}` | Check CMD, env vars, port |
 | Health check failing | `curl {endpoint}/health` | Verify FastAPI health endpoint |
+| 404 on root URL `/` | Hitting FastAPI directly instead of nginx | In SPCS, use the service endpoint (port 8080 via nginx). FastAPI on port 8000 only serves `/api/*` and `/health` |
+| `Unexpected token '<'` in JS console | SPA catch-all route in FastAPI intercepting API paths | Do NOT add SPA routing to FastAPI — nginx handles `try_files` for the React SPA. FastAPI only serves `/api/*` |
 | Cortex 404 | Check endpoint path | Use `/agents/` not `/cortex-agents/` |
+| `connection_name` fails in SPCS | No `~/.snowflake/connections.toml` in container | Use `snowflake_conn.py` template -- auto-detects SPCS via `/snowflake/session/token` and uses OAuth |
+| No active warehouse | Connection succeeds but queries fail | Add `SNOWFLAKE_WAREHOUSE` to service-spec.yaml env block |
+| ARM image crash on SPCS | Built on M-series Mac without platform flag | Always use `docker build --platform linux/amd64` |
+| Agent mapping fails at runtime | Service spec still uses singular `CORTEX_AGENT_NAME` for a multi-persona app | Set `CORTEX_AGENT_PERSONA_{PERSONA}` vars to match `agent_{persona}.sql` outputs |
+
+## Output
+
+- Running Snowflake objects, seed data, and SPCS service that match the upstream project contract
+- Deployment endpoint and validation summary for `isf-solution-testing`
 
 ## Contract
 

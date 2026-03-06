@@ -52,7 +52,7 @@ All ISF solutions follow a layered architecture:
 | Processing | `DATA_ENGINEERING`, `DATA_SCIENCE` | — | Complex intermediate processing | No |
 | ML | `ML` | — | Model explainability (SHAP, PDP, calibration, metrics) | If ML notebooks used |
 | Consumption | `{DATA_MART}` (project-named) | Gold | Consumer-facing data products | Yes |
-| Cortex | In `src/database/cortex/` | — | Agent DDL, semantic model, search service | If Cortex features used |
+| Cortex | In `src/database/cortex/` | — | Agent DDL, Semantic View specs, search service | If Cortex features used |
 
 The ISF naming convention (RAW/ATOMIC/DATA_MART) is preferred for clarity. If the spec or team uses medallion terminology (bronze/silver/gold), map it accordingly.
 
@@ -175,8 +175,8 @@ When the spec includes Cortex features, generate objects in `src/database/cortex
 
 | Object | File | When |
 |--------|------|------|
-| Agent DDL | `cortex/agent.sql` | Spec includes Cortex Agent |
-| Semantic Model | `cortex/semantic_model.yaml` | Spec includes Cortex Analyst |
+| Agent DDL | `cortex/agent_{persona}.sql` + `cortex/grants.sql` | Spec includes Cortex Agent |
+| Semantic View spec | `cortex/semantic_views/{domain}.yaml` | Spec includes Cortex Analyst |
 | Search Service | `cortex/search_service.sql` | Spec includes Cortex Search |
 
 These are separate from migration files — they're deployed after the data layer is populated.

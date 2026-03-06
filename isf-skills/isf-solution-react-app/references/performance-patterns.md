@@ -18,7 +18,7 @@ Creating a new Snowflake connection per request takes 500-2000ms (TCP + TLS + au
 Thread-safe connection pool with lazy health checks. Connections are pre-created up to `_POOL_SIZE` (default 8) and reused via checkout/checkin pattern.
 
 ```python
-from snowflake_conn import get_connection, return_connection
+from app.snowflake_conn import get_connection, return_connection
 
 conn = get_connection()
 try:

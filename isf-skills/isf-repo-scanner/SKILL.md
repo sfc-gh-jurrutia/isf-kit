@@ -105,7 +105,7 @@ Takes a GitHub URL or local path, clones the repo, runs `npx repomix` to generat
 | Indicator | Feature |
 |-----------|---------|
 | CREATE AGENT | Cortex Agent |
-| semantic_model.yaml or Semantic View DDL | Cortex Analyst |
+| semantic_view.yaml, `semantic_views/*.yaml`, or Semantic View DDL | Cortex Analyst |
 | CREATE CORTEX SEARCH SERVICE | Cortex Search |
 | SNOWFLAKE.CORTEX.COMPLETE() | LLM Functions |
 | PARSE_DOCUMENT | Document processing |

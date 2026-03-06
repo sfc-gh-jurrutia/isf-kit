@@ -44,6 +44,10 @@ isf_components_mapped:
 
 # ISF Solution Spec Curation
 
+## When to Use / Load
+
+Load this skill when the user has raw requirements, notes, documents, or a repo and needs a deterministic `isf-context.md` contract for the rest of the ISF pipeline.
+
 ## Quick Start
 
 ### What is an ISF Solution Spec?
@@ -52,7 +56,7 @@ An ISF Solution Specification transforms unstructured ideas — customer convers
 
 The output is a populated `isf-context.md` file (see `references/isf-context.md` for the schema) containing everything needed to plan, build, and deploy the solution.
 
-### Core Workflow
+## Workflow
 
 ```
 1. INGEST
@@ -68,9 +72,19 @@ The output is a populated `isf-context.md` file (see `references/isf-context.md`
 
 3. ARCHITECT
    └── Map needs to ISF Solutions (SOL-xxx)
+   └── Set `isf_context.solution_archetype` before filling downstream architecture fields
    └── Define personas with STAR journeys (PER-xxx)
+   └── For each persona in `agent_architecture.persona_agents[]`: capture user_stories and jobs_to_be_done
    └── Design data architecture (source → landing → transform → curated)
    └── Select Snowflake platform components by layer
+   └── Populate agent_architecture section:
+       For each persona in persona_agents[]:
+         - Set agent_name: {SOLUTION}_{PERSONA}_AGENT
+         - Capture at least 1 user_story and 1 jobs_to_be_done entry when the archetype requires an Agent
+         - Classify derived_tools: read, knowledge, action, ml, viz
+         - Set page_template, page_variant, and route
+         - Write instructions: response tone, orchestration routing, system context
+   └── Populate `implementation.runtime_contract` using the shared local/SPCS env contract and persona env mapping pattern
 
 4. CURATE
    └── Populate isf-context.md with all gathered information
@@ -112,12 +126,12 @@ Before populating the spec sections, identify the solution archetype. This deter
 
 | Archetype | Best For | Cortex Features |
 |-----------|----------|----------------|
-| **AI Copilot** | Chat-first multi-tool agent with analytics + RAG | Agent, Analyst, Search |
-| **Operational Dashboard** | Real-time monitoring, KPIs, alerts | Analyst (optional) |
-| **Predictive Analytics** | ML models, explainability, what-if | Analyst, Agent (optional) |
-| **Data Quality Monitor** | Validation, anomaly detection, lineage | LLM functions (optional) |
+| **AI Copilot** | Chat-first multi-tool agent with analytics + RAG | Agent (required), Analyst, Search |
+| **Operational Dashboard** | Real-time monitoring, KPIs, alerts | Agent (required), Analyst |
+| **Predictive Analytics** | ML models, explainability, what-if | Agent (required), Analyst |
+| **Data Quality Monitor** | Validation, anomaly detection, lineage | Agent (optional), LLM functions |
 | **Self-Service Analytics** | Natural-language SQL, no custom UI | Analyst |
-| **Knowledge Assistant** | Document search, domain knowledge RAG | Search, Agent |
+| **Knowledge Assistant** | Document search, domain knowledge RAG | Agent (required), Search |
 
 **Ask the user** (or infer from requirements):
 
@@ -128,6 +142,7 @@ Confirm or adjust?
 ```
 
 Record the archetype in the spec. `isf-solution-planning` uses it to determine the skill activation path and task parallelism.
+Write it to `isf_context.solution_archetype`. Do not leave this implicit.
 
 ## Spec Sections
 
@@ -294,7 +309,7 @@ Machine-readable output of all ISF component mappings for API consumption. Gener
 
 | Component | Purpose |
 |-----------|---------|
-| Cortex Analyst | Natural language to SQL via semantic models |
+| Cortex Analyst | Natural language to SQL via deployed Semantic Views |
 | Cortex Search | Document search, RAG pipelines, high-cardinality resolution |
 | Cortex Agents | Multi-tool AI orchestration (Analyst + Search + custom) |
 | Cortex LLM Functions | Complete, Summarize, Translate, Sentiment |
@@ -402,12 +417,15 @@ Before finalizing a spec, verify each section:
 | Data architecture unclear | Specify table grain, column types, and transformation layers |
 | No ISF IDs assigned | Map findings to ISF catalog — solutions, use cases, pain points |
 | Missing partner context | Check ISF partner catalog for the industry vertical |
+| Archetype left implicit | Stop and set `isf_context.solution_archetype` before continuing |
+| Agent personas missing JTBD or stories | Add at least one `user_stories` and one `jobs_to_be_done` entry for each persona agent |
 
 ## Output
 
 - A populated `isf-context.md` following the schema in `references/isf-context.md`
 - All 9 spec sections filled with ISF component IDs and narrative content
 - JSON References block with machine-readable ISF mappings
+- `isf_context.solution_archetype` and `implementation.runtime_contract` populated for downstream skills
 
 ## Contract
 
@@ -416,6 +434,12 @@ Before finalizing a spec, verify each section:
 
 **Outputs:**
 - `specs/{solution}/isf-context.md` — Structured YAML spec with 9 sections + ISF component IDs (consumed by `isf-solution-planning`)
+
+## Stopping Points
+
+- After INGEST: confirm parsed input, intent, and target solution scope
+- After ARCHITECT: confirm the selected `solution_archetype` and persona coverage before curating the full spec
+- After CURATE: review the draft spec before validation and downstream chaining
 
 ## Next Skill
 

@@ -8,7 +8,7 @@ This module provides:
 - Error handling and fallback responses
 
 Usage:
-    from cortex_agent_service import router
+    from app.cortex_agent_service import router
     app.include_router(router, prefix="/api/agent")
 """
 
@@ -41,7 +41,7 @@ def _normalize_account_url(url: str) -> str:
 
 
 class CortexAgentConfig:
-    """Configuration for Cortex Agent connection"""
+    """Configuration for Cortex Agent connection. Supports persona-based routing."""
     
     def __init__(
         self,
@@ -59,10 +59,32 @@ class CortexAgentConfig:
         self.schema = os.getenv("CORTEX_AGENT_SCHEMA", schema)
         self.agent_name = os.getenv("CORTEX_AGENT_NAME", agent_name)
         self.warehouse = os.getenv("SNOWFLAKE_WAREHOUSE", warehouse)
+        self._persona_agents = self._load_persona_agents()
     
-    @property
-    def agent_endpoint(self) -> str:
-        return f"{self.account_url}/api/v2/databases/{self.database}/schemas/{self.schema}/agents/{self.agent_name}:run"
+    def _load_persona_agents(self) -> Dict[str, str]:
+        """Load persona-to-agent mapping from env vars.
+        
+        Format: CORTEX_AGENT_PERSONA_{PERSONA}={AGENT_NAME}
+        Example: CORTEX_AGENT_PERSONA_STRATEGIC=SOLUTION_STRATEGIC_AGENT
+        """
+        mapping: Dict[str, str] = {}
+        for key, val in os.environ.items():
+            if key.startswith("CORTEX_AGENT_PERSONA_"):
+                persona = key.replace("CORTEX_AGENT_PERSONA_", "").lower()
+                mapping[persona] = val
+        return mapping
+
+    def agent_endpoint(self, persona: Optional[str] = None) -> str:
+        agent = self.agent_name
+        if persona and persona.lower() in self._persona_agents:
+            agent = self._persona_agents[persona.lower()]
+        return f"{self.account_url}/api/v2/databases/{self.database}/schemas/{self.schema}/agents/{agent}:run"
+
+    def feedback_endpoint(self, persona: Optional[str] = None) -> str:
+        agent = self.agent_name
+        if persona and persona.lower() in self._persona_agents:
+            agent = self._persona_agents[persona.lower()]
+        return f"{self.account_url}/api/v2/databases/{self.database}/schemas/{self.schema}/agents/{agent}:feedback"
     
     @property
     def threads_endpoint(self) -> str:
@@ -114,7 +136,18 @@ class ChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
     parent_message_id: Optional[str] = "0"
+    persona: Optional[str] = None
+    tool_choice: Optional[Dict[str, Any]] = None
     context: Optional[Dict[str, Any]] = None
+
+
+class FeedbackRequest(BaseModel):
+    """Request model for agent feedback"""
+    orig_request_id: str
+    positive: bool
+    feedback_message: Optional[str] = None
+    thread_id: Optional[int] = None
+    persona: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -189,7 +222,7 @@ def get_auth_headers_cached() -> Dict[str, str]:
     now = time.time()
     if not _cached_token or (now - _token_time) > _TOKEN_TTL:
         try:
-            from snowflake_conn import get_connection, return_connection
+            from app.snowflake_conn import get_connection, return_connection
             conn = get_connection()
             _cached_token = conn.rest.token
             return_connection(conn)
@@ -205,12 +238,19 @@ def get_auth_headers_cached() -> Dict[str, str]:
     return get_auth_headers()
 
 
-def _get_agent_endpoint() -> str:
-    """Return the agent endpoint, caching after first computation."""
+def _get_agent_endpoint(persona: Optional[str] = None) -> str:
+    """Return the agent endpoint for a persona, caching the default."""
+    if persona:
+        return get_config().agent_endpoint(persona)
     global _cached_agent_endpoint
     if _cached_agent_endpoint is None:
-        _cached_agent_endpoint = get_config().agent_endpoint
+        _cached_agent_endpoint = get_config().agent_endpoint()
     return _cached_agent_endpoint
+
+
+def _get_feedback_endpoint(persona: Optional[str] = None) -> str:
+    """Return the feedback endpoint for a persona."""
+    return get_config().feedback_endpoint(persona)
 
 
 def _get_threads_endpoint() -> str:
@@ -288,7 +328,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
     client = _get_http_client()
     try:
         response = await client.post(
-            _get_agent_endpoint(),
+            _get_agent_endpoint(request.persona),
             headers={
                 **get_auth_headers_cached(),
                 "Content-Type": "application/json",
@@ -364,32 +404,49 @@ async def chat(request: ChatRequest) -> ChatResponse:
 # ============================================================================
 
 _SSE_EVENT_TYPE_MAP = {
-    "response.output.delta": "text",
     "response.text.delta": "text",
+    "response.text": "text_complete",
+    "response.text.annotation": "annotation",
     "response.thinking.delta": "thinking",
+    "response.thinking": "thinking_complete",
+    "response.status": "status",
+    "response.tool_use": "tool_use_start",
+    "response.tool_result": "tool_result",
+    "response.tool_result.status": "tool_status",
+    "response.tool_result.analyst.delta": "analyst_delta",
+    "response.table": "table",
+    "response.chart": "chart",
+    "response": "message_complete",
+    "metadata": "metadata",
 }
 
 
 def map_cortex_event(event: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Map Cortex Agent events to standardized format for frontend.
+    Map Cortex Agent SSE events to standardized format for frontend.
 
     Snowflake SSE streams use a two-line format::
 
-        event: response.output.delta
+        event: response.text.delta
         data: {"text": "Hello..."}
 
     The caller injects the SSE event type as ``_sse_event_type`` so this
-    function can resolve the correct mapping even when the JSON payload
-    has no ``type`` / ``event`` field of its own.
+    function can resolve the correct mapping.
 
     Output event types for frontend:
-    - text_delta: Incremental text with 'text' field
-    - tool_start: Tool begins with name/type
-    - tool_end: Tool completes with result/sql
-    - tool_result: Intermediate tool results
-    - reasoning: Agent thinking process
-    - message_complete: Final message with citations
+    - text_delta: Incremental text token
+    - text_complete: Full text block with annotations
+    - annotation: Citation from cortex_search
+    - tool_start: Tool begins (tool_use_id, type, name, input)
+    - tool_result: Tool output (content, status, sql)
+    - tool_status: Tool execution progress
+    - analyst_delta: Analyst SQL/result_set streaming
+    - table: Table result set
+    - chart: Vega-Lite chart spec (from data_to_chart)
+    - reasoning: Agent thinking delta
+    - status: Planning / reasoning status
+    - message_complete: Final aggregated response
+    - metadata: Thread / message IDs
     - error: Error event
     """
     sse_type = event.pop("_sse_event_type", "")
@@ -399,56 +456,67 @@ def map_cortex_event(event: Dict[str, Any]) -> Dict[str, Any]:
         or _SSE_EVENT_TYPE_MAP.get(sse_type)
     )
 
-    if event_type in ("text", "content_block_delta"):
+    if event_type == "text":
         text = event.get("text") or event.get("delta", {}).get("text", "")
         return {"event_type": "text_delta", "text": text}
 
-    if event_type == "tool_use_start":
-        return {
-            "event_type": "tool_start",
-            "tool_name": event.get("name"),
-            "tool_type": event.get("tool_type", "custom"),
-            "input": event.get("input"),
-        }
+    if event_type == "text_complete":
+        return {"event_type": "text_complete", "text": event.get("text", ""),
+                "annotations": event.get("annotations", [])}
 
-    if event_type == "tool_use_end":
-        return {
-            "event_type": "tool_end",
-            "tool_name": event.get("name"),
-            "result": event.get("result"),
-            "sql": event.get("sql"),
-            "error": event.get("error"),
-            "duration": event.get("duration"),
-        }
+    if event_type == "annotation":
+        return {"event_type": "annotation", "doc_id": event.get("doc_id"),
+                "doc_title": event.get("doc_title"), "source": event.get("source")}
+
+    if event_type == "status":
+        return {"event_type": "status", "text": event.get("text", "")}
+
+    if event_type == "tool_use_start":
+        return {"event_type": "tool_start", "tool_use_id": event.get("tool_use_id"),
+                "tool_name": event.get("name"), "tool_type": event.get("type"),
+                "input": event.get("input")}
 
     if event_type == "tool_result":
-        return {
-            "event_type": "tool_result",
-            "tool_name": event.get("tool_name") or event.get("name"),
-            "result": event.get("result") or event.get("data"),
-            "sql": event.get("sql"),
-        }
+        return {"event_type": "tool_result", "tool_use_id": event.get("tool_use_id"),
+                "tool_name": event.get("tool_name") or event.get("name"),
+                "content": event.get("content") or event.get("result"),
+                "status": event.get("status"), "sql": event.get("sql")}
+
+    if event_type == "tool_status":
+        return {"event_type": "tool_status", "tool_use_id": event.get("tool_use_id"),
+                "status": event.get("status")}
+
+    if event_type == "analyst_delta":
+        return {"event_type": "analyst_delta", "sql": event.get("sql"),
+                "result_set": event.get("result_set"),
+                "suggestions": event.get("suggestions")}
+
+    if event_type == "table":
+        return {"event_type": "table", "result_set": event.get("result_set"),
+                "columns": event.get("columns")}
+
+    if event_type == "chart":
+        return {"event_type": "chart", "spec": event.get("spec"),
+                "chart_type": event.get("chart_type")}
 
     if event_type == "thinking":
-        return {
-            "event_type": "reasoning",
-            "text": event.get("text"),
-        }
+        return {"event_type": "reasoning", "text": event.get("text")}
 
-    if event_type in ("message_stop", "done"):
-        return {
-            "event_type": "message_complete",
-            "message_id": event.get("message_id"),
-            "thread_id": event.get("thread_id"),
-            "citations": event.get("citations", []),
-        }
+    if event_type == "thinking_complete":
+        return {"event_type": "reasoning_complete", "text": event.get("text", "")}
+
+    if event_type in ("message_complete", "message_stop", "done"):
+        return {"event_type": "message_complete", "message_id": event.get("message_id"),
+                "thread_id": event.get("thread_id"), "citations": event.get("citations", [])}
+
+    if event_type == "metadata":
+        return {"event_type": "metadata", "message_id": event.get("message_id"),
+                "thread_id": event.get("thread_id"),
+                "parent_message_id": event.get("parent_message_id")}
 
     if event_type == "error":
-        return {
-            "event_type": "error",
-            "error": event.get("error") or event.get("message"),
-            "code": event.get("code"),
-        }
+        return {"event_type": "error", "error": event.get("error") or event.get("message"),
+                "code": event.get("code")}
 
     return event
 
@@ -457,20 +525,16 @@ async def stream_agent_response(
     thread_id: str,
     message: str,
     parent_message_id: str = "0",
+    persona: Optional[str] = None,
+    tool_choice: Optional[Dict[str, Any]] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream responses from Cortex Agent using SSE.
-    
-    Yields SSE-formatted events for:
-    - tool_start: When a tool begins execution
-    - tool_end: When a tool completes
-    - tool_result: Tool output data
-    - text_delta: Incremental text content
-    - reasoning: Agent thought process
-    - message_complete: Final message with metadata
-    - error: Error events
+
+    When ``persona`` is provided, routes to the persona-specific agent
+    via CORTEX_AGENT_PERSONA_{PERSONA} env var mapping.
     """
-    payload = {
+    payload: Dict[str, Any] = {
         "thread_id": thread_id,
         "parent_message_id": parent_message_id,
         "stream": True,
@@ -481,17 +545,18 @@ async def stream_agent_response(
             }
         ]
     }
+    if tool_choice:
+        payload["tool_choice"] = tool_choice
     
     client = _get_http_client()
 
-    # SSE deduplication state — Cortex Agent may send cumulative text
     accumulated_text = ""
     last_text_len = 0
 
     try:
         async with client.stream(
             "POST",
-            _get_agent_endpoint(),
+            _get_agent_endpoint(persona),
             headers={
                 **get_auth_headers_cached(),
                 "Content-Type": "application/json",
@@ -565,10 +630,10 @@ async def stream_agent_response(
 async def run_agent_streaming(request: ChatRequest):
     """
     Send a message to Cortex Agent with SSE streaming response.
-    
-    Returns a streaming response with SSE events.
+
+    Pass ``persona`` to route to a persona-specific agent.
+    Pass ``tool_choice`` to constrain which tools the agent can use.
     """
-    # Create thread if not provided
     thread_id = request.thread_id
     if not thread_id:
         thread_response = await create_thread()
@@ -579,6 +644,8 @@ async def run_agent_streaming(request: ChatRequest):
             thread_id=thread_id,
             message=request.message,
             parent_message_id=request.parent_message_id or "0",
+            persona=request.persona,
+            tool_choice=request.tool_choice,
         ),
         media_type="text/event-stream",
         headers={
@@ -588,6 +655,40 @@ async def run_agent_streaming(request: ChatRequest):
             "X-Thread-Id": thread_id,
         },
     )
+
+
+# ============================================================================
+# Feedback Endpoint
+# ============================================================================
+
+@router.post("/feedback")
+async def submit_feedback(request: FeedbackRequest):
+    """Submit feedback on an agent response (thumbs up/down)."""
+    client = _get_http_client()
+    payload: Dict[str, Any] = {
+        "orig_request_id": request.orig_request_id,
+        "positive": request.positive,
+    }
+    if request.feedback_message:
+        payload["feedback_message"] = request.feedback_message
+    if request.thread_id is not None:
+        payload["thread_id"] = request.thread_id
+
+    try:
+        response = await client.post(
+            _get_feedback_endpoint(request.persona),
+            headers={**get_auth_headers_cached(), "Content-Type": "application/json"},
+            json=payload,
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Feedback failed: {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Feedback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -602,7 +703,8 @@ async def health_check():
         return {
             "status": "healthy",
             "agent": f"{config.database}.{config.schema}.{config.agent_name}",
-            "endpoint": config.agent_endpoint,
+            "endpoint": config.agent_endpoint(),
+            "persona_agents": sorted(config._persona_agents.keys()),
         }
     except Exception as e:
         return {
@@ -625,7 +727,7 @@ async def warmup():
     """
     errors = []
     try:
-        from snowflake_conn import get_connection, return_connection
+        from app.snowflake_conn import get_connection, return_connection
         conn = get_connection()
         try:
             conn.cursor().execute("SELECT 1")
@@ -656,30 +758,39 @@ To use this in your FastAPI app:
    - SNOWFLAKE_PAT=your-personal-access-token
    - CORTEX_AGENT_DATABASE=MYDB
    - CORTEX_AGENT_SCHEMA=MYSCHEMA
-   - CORTEX_AGENT_NAME=MY_AGENT
+   - CORTEX_AGENT_NAME=MY_AGENT  (default fallback)
+   - CORTEX_AGENT_PERSONA_STRATEGIC=SOLUTION_STRATEGIC_AGENT
+   - CORTEX_AGENT_PERSONA_OPERATIONAL=SOLUTION_OPERATIONAL_AGENT
+   - CORTEX_AGENT_PERSONA_TECHNICAL=SOLUTION_TECHNICAL_AGENT
 
 2. Include the router in your app:
    
    from fastapi import FastAPI
-   from cortex_agent_service import router as agent_router
+   from app.cortex_agent_service import router as agent_router
    
    app = FastAPI()
    app.include_router(agent_router, prefix="/api/agent")
 
-3. Connect from React:
+3. Connect from React (persona-based routing):
    
-   <CortexAgentChat 
-     agentEndpoint="/api/agent/run"  // For streaming
-     // or
-     agentEndpoint="/api/agent/chat"  // For non-streaming
-   />
+   // Each persona page sends its persona in the request
+   fetch("/api/agent/run", {
+     method: "POST",
+     body: JSON.stringify({
+       message: "What is our exposure?",
+       persona: "strategic",  // routes to SOLUTION_STRATEGIC_AGENT
+       thread_id: threadId,
+     }),
+   })
 
-4. For local development without Cortex Agent, implement a mock:
+4. Feedback (thumbs up/down):
    
-   @router.post("/mock")
-   async def mock_chat(request: ChatRequest):
-       return ChatResponse(
-           response=f"Mock response to: {request.message}",
-           sources=[{"title": "Mock Source"}],
-       )
+   fetch("/api/agent/feedback", {
+     method: "POST",
+     body: JSON.stringify({
+       orig_request_id: "...",
+       positive: true,
+       persona: "strategic",
+     }),
+   })
 """

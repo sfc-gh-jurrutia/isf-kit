@@ -27,8 +27,8 @@ Full-featured React chat component for integrating with Snowflake Cortex Agents.
 ### 1. Copy templates to your project
 
 ```bash
-cp ~/.snowflake/cortex/skills/snowflake-demo-react-app/templates/CortexAgentChat.tsx frontend/src/components/
-cp ~/.snowflake/cortex/skills/snowflake-demo-react-app/templates/cortex_agent_service.py backend/services/
+cp ~/.snowflake/cortex/skills/snowflake-demo-react-app/templates/CortexAgentChat.tsx src/ui/src/components/
+cp ~/.snowflake/cortex/skills/snowflake-demo-react-app/templates/cortex_agent_service.py api/app/
 ```
 
 ### 2. Set environment variables
@@ -38,13 +38,15 @@ export SNOWFLAKE_ACCOUNT_URL=https://your-account.snowflakecomputing.com
 export SNOWFLAKE_PAT=your-personal-access-token
 export CORTEX_AGENT_DATABASE=MYDB
 export CORTEX_AGENT_SCHEMA=MYSCHEMA
-export CORTEX_AGENT_NAME=MY_AGENT
+export CORTEX_AGENT_PERSONA_OPERATIONAL=MY_SOLUTION_OPERATIONAL_AGENT
+# Optional single-persona fallback only:
+# export CORTEX_AGENT_NAME=MY_AGENT
 ```
 
 ### 3. Include router in FastAPI
 
 ```python
-from services.cortex_agent_service import router as agent_router
+from app.cortex_agent_service import router as agent_router
 app.include_router(agent_router, prefix="/api/agent")
 ```
 

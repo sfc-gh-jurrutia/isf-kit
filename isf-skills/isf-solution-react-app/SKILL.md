@@ -12,6 +12,12 @@ parent_skill: isf-solution-engine
 
 Build production-quality React+FastAPI applications deployed to SPCS. This skill provides architecture patterns, a component library, and 50+ best practice rules.
 
+**Architecture Principle: Agent-Proxy.** The FastAPI backend proxies all AI interactions through Cortex Agent REST API. Do NOT call `CORTEX.COMPLETE` or build manual orchestrators. The `cortex_agent_service.py` template handles persona-based routing, SSE streaming, feedback, and thread management.
+
+## When to Use / Load
+
+Load this skill after planning has locked the UI strategy and after the Cortex layer has produced any required persona agents.
+
 ## Quick Start
 
 ### What Does This Skill Do?
@@ -27,6 +33,7 @@ Generates the React+FastAPI application code for an ISF solution:
 - `plan.md` from `isf-solution-planning` (UI strategy, page template, chart assignments)
 - `isf-context.md` for: personas, Cortex features, data architecture
 - Cortex Agent from `isf-cortex-agent` (if chat/copilot UI)
+- `.env.example` / runtime env contract from planning + agent persona mappings
 - Style tokens from `isf-solution-style-guide`
 
 ## Quality Bar
@@ -51,7 +58,6 @@ The output should match what you'd expect from a senior product designer at a to
 | `references/ml-visualization-patterns.md` | ML schema to frontend bridge: API patterns, SHAP/factor/prediction components | When ML models exist in the pipeline |
 | `references/copilot-learnings.md` | Architecture patterns from successful copilot implementations | Always |
 | `references/cortex-chat.md` | Cortex Agent chat integration patterns | When building copilot UI |
-| `references/workflow.md` | Multi-step workflow patterns | When building guided experiences |
 | `references/websocket-pattern.md` | FastAPI WebSocket + React hook for real-time push | When building live dashboards or monitoring UIs |
 | `references/reactflow-dag.md` | React Flow DAG visualization with custom nodes | When building workflow/pipeline/lineage visualizations |
 | `rules/*.md` | 18 production rules (a11y, performance, Snowflake-specific, data density) | During code review |
@@ -106,7 +112,7 @@ Composable React components for Cortex Agent integration in `templates/`.
 | Type | Description |
 |------|-------------|
 | `CortexMessage` | Message with role, content, toolCalls |
-| `CortexEvent` | SSE event types (text_delta, tool_start, tool_end, error, done) |
+| `CortexEvent` | SSE event types (text_delta, tool_start, tool_result, analyst_delta, table, chart, annotation, reasoning, status, message_complete, metadata, error) |
 
 ### Backend Template
 
@@ -121,11 +127,13 @@ Composable React components for Cortex Agent integration in `templates/`.
 
 ```
 React (useCortexAgent)
-  → fetch('/api/agent/run', { stream: true })
-    → FastAPI (cortex_agent_service.py)
+  → fetch('/api/agent/run', { persona, message, thread_id, stream: true })
+    → FastAPI (cortex_agent_service.py) — routes to persona-specific agent
       → Snowflake Cortex Agent REST API
         → SSE events stream back through all layers
 ```
+
+**Persona-page routing**: Each persona page sends its `persona` string in the request body. The backend maps this to the correct agent via `CORTEX_AGENT_PERSONA_{PERSONA}` env vars defined by planning + agent outputs. Each page manages its own thread independently. See `references/page-templates.md` → Persona-Page Mapping.
 
 **Critical headers for SSE:**
 
@@ -204,6 +212,7 @@ api/                             # FastAPI backend
 ```
 1. LOAD UI STRATEGY
    └── Read plan.md UI Strategy section (page template, charts, theme)
+   └── Treat plan.md as the only authority for archetype, page template, routes, and persona pages
    └── Read isf-context.md personas for journey mapping
 
 2. SCAFFOLD
@@ -243,10 +252,8 @@ api/                             # FastAPI backend
    ⚠️ STOP: Present scaffold plan (pages, components, Cortex integration points) for review before implementing.
 
 3. IMPLEMENT PAGES
-   └── **SELECT page template** from `references/page-templates.md` based on archetype in plan.md
-       CommandCenter (AI Copilot, Operational Dashboard, Predictive Analytics)
-       AnalyticsExplorer (Self-Service Analytics, Data Quality Monitor)
-       AssistantLayout (Knowledge Assistant)
+   └── **USE the page template already specified in `plan.md`**
+   └── Validate the chosen template against `references/page-templates.md`
    └── **VERIFY all REQUIRED zones** have a component mapped before writing code
    └── Build KPI strip using `KPIStrip` component (min 4 cards for CommandCenter)
    └── Build entity data table using `EntityDataTable` component
@@ -264,8 +271,9 @@ api/                             # FastAPI backend
        Present the list of connection names to the user.
        User selects one. Write to `api/.env`:
          `SNOWFLAKE_CONNECTION_NAME=<selected>`
-   └── Configure remaining env vars in `api/.env`: SNOWFLAKE_ACCOUNT_URL,
-       CORTEX_AGENT_DATABASE, CORTEX_AGENT_SCHEMA, CORTEX_AGENT_NAME
+   └── Configure remaining env vars in `api/.env` from the shared runtime contract:
+       `CORTEX_AGENT_DATABASE`, `CORTEX_AGENT_SCHEMA`, and `CORTEX_AGENT_PERSONA_{PERSONA}`
+   └── Use `CORTEX_AGENT_NAME` only when the plan explicitly defines a single persona page
    └── Create domain data endpoints in routers/ using backend_patterns.py helpers
    └── Run `rules/sf-backend-checklist.md` — all 8 items must pass
 
@@ -408,7 +416,7 @@ async function simulateStreaming(fullText: string, onUpdate: (text: string) => v
 }
 ```
 
-Use this when the `/api/chat` endpoint returns JSON with a complete `response` field rather than streaming SSE events.
+Use this when the `/api/agent/chat` endpoint returns JSON with a complete `response` field rather than streaming SSE events.
 
 ## Performance Requirements
 
@@ -472,9 +480,17 @@ Every ISF solution must implement these patterns. See `references/visual-polish.
 | Shimmer loading not appearing | Ensure `.data-revalidating` class is in `design-system.css` and CSS is imported |
 | Click-to-ask not working | Verify `pendingPrompt` state flows from the click handler to `AgentSidebarPanel` |
 
-## Next Skill
+## Stopping Points
 
-After the application is built:
+- After SCAFFOLD: review page/component/backend template mapping before codegen
+- After IMPLEMENT BACKEND: review endpoints, caching, connection strategy, and persona-agent env mappings before validation
+
+## Output
+
+- `src/ui/` React app that matches the template selected in `plan.md`
+- `api/` FastAPI backend wired to the shared runtime env contract and Cortex Agent proxy templates
+
+## Next Skill
 
 **Continue to** `../isf-deployment/SKILL.md` to deploy the full solution (migrations, seed data, app) to SPCS.
 

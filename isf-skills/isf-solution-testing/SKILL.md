@@ -46,10 +46,10 @@ Layer 3: Data
   └── Migrations applied? Seed data loaded? Row counts correct?
 
 Layer 4: Cortex Services
-  └── Agent responds? Search returns results? Semantic model valid?
+  └── Agent responds? Search returns results? Semantic Views valid?
 
 Layer 5: Application
-  └── React builds? FastAPI health endpoint responds?
+  └── React builds? FastAPI health endpoint responds? `/ready` passes?
 
 Layer 6: SPCS
   └── Service READY? Container healthy? Endpoint accessible?
@@ -103,10 +103,10 @@ snow sql -q "SHOW CORTEX AGENTS;" -c ${CONNECTION}
 # Search service exists and refreshing
 snow sql -q "SHOW CORTEX SEARCH SERVICES;" -c ${CONNECTION}
 
-# Semantic view exists
+# Semantic Views exist
 snow sql -q "SHOW SEMANTIC VIEWS IN SCHEMA ${DATABASE}.${SCHEMA};" -c ${CONNECTION}
 
-# Golden query test
+# Golden query test against deployed Semantic View
 snow sql -q "
 SELECT * FROM TABLE(
   SNOWFLAKE.CORTEX.ANALYST('${DATABASE}.${SCHEMA}.${MODEL}', 'Total revenue by region?')
@@ -121,6 +121,10 @@ cd src/ui && npm run build
 
 # FastAPI tests
 cd api && python -m pytest
+
+# Backend readiness
+curl -sf http://localhost:8000/ready
+curl -sf http://localhost:8000/api/agent/warmup
 ```
 
 ### Layer 6: SPCS
@@ -138,6 +142,19 @@ curl -X POST ${ENDPOINT}/api/agent/run \
   -H "Content-Type: application/json" \
   -d '{"message": "What were total sales last quarter?"}'
 ```
+
+## Pre-Deploy Gate
+
+Run this gate after the app phase and before `isf-deployment`. Deployment should not start until every item passes.
+
+| Check | Pass If |
+|-------|---------|
+| Required views | Every API-backed table/view used by the UI returns rows or valid empty-state results |
+| Runtime env contract | Local `.env` and SPCS service-spec env blocks match the planned contract |
+| Agent routing | Persona agent mappings resolve to deployed agent names and `/api/agent/warmup` succeeds |
+| Import paths | Backend starts with deployed package imports (for example `from app...`) |
+| Readiness | `/ready` returns 200 with dependency checks, not just process liveness |
+| Smoke call | One end-to-end agent request succeeds before Phase 6 is considered complete |
 
 ### Layer 8: Hidden Discovery
 
@@ -163,9 +180,10 @@ Run the validation query from `isf-data-generation` to confirm the discovery is 
 - [ ] `deploy/setup.sql` has been run
 - [ ] Migrations applied (check SCHEMACHANGE.CHANGE_HISTORY)
 - [ ] Seed data loaded (verify row counts)
-- [ ] Cortex objects deployed (agent, search, semantic model)
+- [ ] Cortex objects deployed (agent, search, Semantic Views)
 - [ ] React app builds locally (`npm run build`)
 - [ ] FastAPI tests pass (`pytest`)
+- [ ] `/ready` and `/api/agent/warmup` pass locally
 - [ ] SPCS service is READY (if deployed)
 
 ## Stopping Points
