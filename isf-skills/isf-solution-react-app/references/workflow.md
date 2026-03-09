@@ -1,6 +1,12 @@
-# Scaffold Workflow
+# Legacy Scaffold Workflow
 
-Complete step-by-step workflow for creating a React+FastAPI application from Snowflake data.
+This file is retained for historical context only. Do **not** use it as the authoritative workflow for current ISF builds.
+
+Current source of truth:
+- `isf-solution-react-app/SKILL.md` for the active workflow
+- `references/page-templates.md` for layout selection and required zones
+- `rules/sf-backend-checklist.md` for backend and pre-deploy gates
+- `isf-solution-planning/SKILL.md` for `src/ui/` + `api/app/` structure and runtime contract
 
 ## Step 1: Gather Requirements
 

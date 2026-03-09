@@ -18,8 +18,8 @@ Maintain a persistent `httpx.AsyncClient` instead of creating one per request.
 async def chat(request: ChatRequest):
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            config.agent_endpoint,
-            headers={**get_auth_headers(), "Content-Type": "application/json"},
+            config.agent_endpoint(),
+            headers={**get_auth_headers_cached(), "Content-Type": "application/json"},
             json=payload,
             timeout=120.0,
         )
@@ -53,8 +53,8 @@ def _get_http_client() -> httpx.AsyncClient:
 async def chat(request: ChatRequest):
     client = _get_http_client()
     response = await client.post(
-        config.agent_endpoint,
-        headers={**get_auth_headers(), "Content-Type": "application/json"},
+        config.agent_endpoint(),
+        headers={**get_auth_headers_cached(), "Content-Type": "application/json"},
         json=payload,
         timeout=120.0,
     )

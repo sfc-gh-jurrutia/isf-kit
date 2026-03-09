@@ -84,6 +84,9 @@ Run this skill after `isf-solution-testing` passes all layers. This is the final
 | `dist/` in .gitignore | Build output not committed |
 | `logs/` in .gitignore | Runtime logs not committed |
 | Style guide tokens applied | `isf-solution-style-guide` colors, no red/green comparisons |
+| `/ready` endpoint | Dependency-aware readiness check returns 200 |
+| Agent warmup works | `/api/agent/warmup` succeeds before release |
+| Persona agent env vars align | Multi-persona solutions use `CORTEX_AGENT_PERSONA_{PERSONA}` mappings that match the generated agent files |
 
 ## Documentation
 
@@ -107,6 +110,7 @@ If ANY of these are true, the solution **must not be published**:
 | 5 | ACCOUNTADMIN role used | `grep -r "ACCOUNTADMIN" src/ deploy/` |
 | 6 | Secrets in client bundle | `grep -r "token\|secret\|password" src/ui/dist/` |
 | 7 | Non-deterministic data | Different output on re-generation (check seed) |
+| 8 | No pre-deploy gate evidence | `/ready`, warmup, or agent smoke-call results are missing |
 
 ## Release Decision
 

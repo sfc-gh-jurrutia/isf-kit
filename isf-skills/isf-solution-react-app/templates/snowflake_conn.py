@@ -18,7 +18,7 @@ Auth detection:
     back to connection_name-based auth from ~/.snowflake/connections.toml.
 
 Usage:
-    from snowflake_conn import get_connection, return_connection
+    from app.snowflake_conn import get_connection, return_connection
 
     conn = get_connection()
     try:

@@ -107,7 +107,7 @@ def get_agent_metadata(agent_name: str, database: str, schema: str) -> dict:
     Requires an active Snowflake connection from the pool. Returns a dict
     with keys: name, description, model, tools, dataSources, routingStrategy.
     """
-    from snowflake_conn import get_connection, return_connection
+    from app.snowflake_conn import get_connection, return_connection
 
     conn = get_connection()
     try:

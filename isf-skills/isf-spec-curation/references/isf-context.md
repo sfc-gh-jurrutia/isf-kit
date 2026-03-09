@@ -20,6 +20,7 @@ approval_required_from: ["solution_lead", "technical_architect", "customer_stake
 isf_context:
   industry: "FSI | HLS | RET | MFG | MED | PUB | TEL | AME | GOV"    # T1 — required
   industry_segment: "specific vertical within industry"                # T1 — required
+  solution_archetype: "AI Copilot | Operational Dashboard | Predictive Analytics | Data Quality Monitor | Self-Service Analytics | Knowledge Assistant" # T1 — required
   solution_ids: ["SOL-xxx", "SOL-yyy"]                                 # T3
   use_case_ids: ["UC-xxx", "UC-yyy"]                                   # T3
   pain_point_ids: ["PAIN-xxx", "PAIN-yyy"]                             # T3
@@ -106,6 +107,57 @@ architecture:
         purpose: "User-facing application"                             # T3
         layer: "Application Development"                               # T3
         status: "GA"                                                   # T3
+
+  # AGENT ARCHITECTURE (populated when any Cortex AI features are present)
+  agent_architecture:                                                      # T3
+    model: "claude-sonnet-4-5"                                             # T3
+    budget:                                                                # T3
+      seconds: 30
+      tokens: 16000
+    shared_tools:                                                          # T3
+      - type: "cortex_analyst_text_to_sql"
+        name: "{TOOL_NAME}"
+        data_source: "deployed semantic view name or authored semantic view spec path"
+      - type: "cortex_search"
+        name: "{TOOL_NAME}"
+        search_service: "service path"
+      - type: "data_to_chart"
+        name: "data_to_chart"
+    persona_agents:                                                        # T3
+      - persona_id: "PER-xxx"
+        agent_name: "{SOLUTION}_{PERSONA}_AGENT"
+        role: "Persona role title"
+        user_stories:                                                      # T2 — REQUIRED when isf_context.solution_archetype requires an Agent; minimum 1 story per persona
+          - "As a {Role}, I want to {action} so that I can {outcome}"
+          - "As a {Role}, I want to {action} so that I can {outcome}"
+        jobs_to_be_done:                                                   # T2 — REQUIRED when isf_context.solution_archetype requires an Agent; minimum 1 JTBD per persona
+          - "Job description from persona STAR journey"
+        derived_tools:
+          read: ["{ANALYST_TOOL}"]
+          knowledge: ["{SEARCH_TOOL}"]
+          action:                                                          # generic tools — stored procedures
+            - name: "{ACTION_TOOL}"
+              procedure: "{DATABASE}.{SCHEMA}.{PROC_NAME}"
+              description: "What this action does and when to invoke it"
+            - name: "{ACTION_TOOL_2}"
+              procedure: "{DATABASE}.{SCHEMA}.{PROC_NAME_2}"
+              description: "Description of second action"
+          ml:                                                              # generic tools — UDFs
+            - name: "{ML_TOOL}"
+              udf: "{DATABASE}.{SCHEMA}.{UDF_NAME}"
+              description: "Score/predict/classify description"
+          viz: ["data_to_chart"]
+        instructions:
+          response: "Persona-specific response tone"
+          orchestration: "Persona-specific tool routing"
+          system: "Role context for this persona agent"
+        page_template: "CommandCenter"                                     # T3 — CommandCenter | AnalyticsExplorer | AssistantLayout
+        page_variant: "full"                                               # T3 — aggregate | full | explorer | hybrid
+        route: "/operational"                                              # T3 — URL path for this persona page
+    governance:                                                            # T3 — optional, for Pillar 3
+      - name: "explain_lineage"
+        procedure: "{DATABASE}.{SCHEMA}.EXPLAIN_LINEAGE"
+        description: "Explain data lineage and transformations for a metric"
 
   # DATA ARCHITECTURE
   data_model:
@@ -195,6 +247,23 @@ implementation:
     - asset_id: "AST-xxx"                                              # T3
       name: "Reference Architecture"                                   # T3
       usage: "How it will be applied"                                  # T3
+
+  runtime_contract:
+    local_env_required:                                                # T3
+      - "SNOWFLAKE_CONNECTION_NAME"
+      - "CORTEX_AGENT_DATABASE"
+      - "CORTEX_AGENT_SCHEMA"
+    spcs_env_required:                                                 # T3
+      - "SNOWFLAKE_DATABASE"
+      - "SNOWFLAKE_SCHEMA"
+      - "SNOWFLAKE_WAREHOUSE"
+    persona_agent_env:                                                 # T3 — generated from agent_architecture.persona_agents[]
+      - persona: "strategic"
+        env_var: "CORTEX_AGENT_PERSONA_STRATEGIC"
+        agent_name: "{SOLUTION}_STRATEGIC_AGENT"
+      - persona: "operational"
+        env_var: "CORTEX_AGENT_PERSONA_OPERATIONAL"
+        agent_name: "{SOLUTION}_OPERATIONAL_AGENT"
 
   # DEVELOPMENT PHASES
   phases:

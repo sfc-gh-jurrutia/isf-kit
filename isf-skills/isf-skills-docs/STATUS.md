@@ -1,6 +1,6 @@
 # ISF Skills — Comprehensive Workflow Status
 
-Last updated: 2026-03-02
+Last updated: 2026-02-28
 
 ## Workflow Overview
 
@@ -61,7 +61,7 @@ flowchart TD
   SD -->|"industry-skills.md"| SP
   SG -.->|"tokens + colors"| RA
   SG -.->|"dark theme"| NB
-  SP -->|"plan.md + tasks.md"| DA
+  SP -->|"plan.md + tasks.md + pipeline-state.yaml"| DA
   DA -->|"entity YAMLs + migrations"| DG
   DA -->|"schema design"| DP
   DG -->|"seed data"| DP
@@ -72,7 +72,8 @@ flowchart TD
   CS --> CA
   CL --> CA
   PU --> CA
-  RA --> DP
+  RA --> gate
+  gate[pre-deploy gate] --> DP
   NB --> DP
   DP --> ST
   ST --> RP
@@ -110,7 +111,7 @@ If no industry skills are found, an empty artifact is produced and the pipeline 
 
 | Skill | Input | Output |
 |-------|-------|--------|
-| `isf-solution-planning` | `isf-context.md`, `industry-skills.md` | `plan.md`, `tasks.md`, scaffolded project directory |
+| `isf-solution-planning` | `isf-context.md`, `industry-skills.md` | `plan.md`, `tasks.md`, `pipeline-state.yaml`, scaffolded project directory |
 | `isf-solution-style-guide` | — (cross-cutting) | Design tokens, color palette, accessibility rules |
 
 **Key artifact**: Scaffolded project following the ISF standard structure with Makefile, schemachange, SPCS deployment.
@@ -128,10 +129,10 @@ If no industry skills are found, an empty artifact is produced and the pipeline 
 
 | Skill | Input | Output |
 |-------|-------|--------|
-| `isf-cortex-analyst` | DATA_MART views | `src/database/cortex/semantic_model.yaml` |
+| `isf-cortex-analyst` | DATA_MART views | `src/database/cortex/semantic_views/*.yaml` + deployed Semantic Views |
 | `isf-cortex-search` | Documents/text | `src/database/cortex/search_service.sql` |
 | `isf-python-udf` | Business logic requirements | `src/database/functions/*.sql` |
-| `isf-cortex-agent` | Analyst + Search + UDFs | `src/database/cortex/agent.sql` |
+| `isf-cortex-agent` | Analyst + Search + UDFs | `src/database/cortex/agent_{persona}.sql`, `src/database/cortex/grants.sql` |
 | `isf-solution-react-app` | `plan.md` UI strategy + style guide tokens | `src/ui/` + `api/` (6 component templates, 3 backend patterns, performance-first) |
 | `isf-notebook` | ML requirements | `notebooks/*.ipynb` |
 
@@ -202,6 +203,7 @@ specs/{solution}/
 ├── industry-skills.md           # From isf-skill-discovery (Phase 1.5)
 ├── plan.md                      # From isf-solution-planning
 ├── tasks.md                     # From isf-solution-planning
+├── pipeline-state.yaml          # Canonical engine resume state
 └── repomix-output.xml           # From isf-repo-scanner (if Path C)
 
 {project}/                        # Scaffolded by isf-solution-planning
@@ -220,8 +222,12 @@ specs/{solution}/
 │   │   ├── procs/               # Stored procedures
 │   │   ├── roles/               # RBAC config
 │   │   └── cortex/
-│   │       ├── agent.sql
-│   │       ├── semantic_model.yaml
+│   │       ├── agent_strategic.sql
+│   │       ├── agent_operational.sql
+│   │       ├── agent_technical.sql
+│   │       ├── grants.sql
+│   │       ├── semantic_views/
+│   │       │   └── operational.yaml
 │   │       └── search_service.sql
 │   └── data_engine/
 │       ├── generators/          # Generation scripts
@@ -257,6 +263,8 @@ specs/{solution}/
 | Industry skill discovery is first-class | Phase 1.5 scans environment for domain-specific skills before planning begins |
 | Performance-first backend templates | Connection pool, persistent HTTP client, TTL cache, SSE dedup shipped as copy-in templates |
 | Click-to-ask is mandated | Every metric and data point must be clickable to query the Cortex Agent |
+| Resume is state-driven | `pipeline-state.yaml` plus phase gates replaces file-existence-only resume logic |
+| Semantic Views are runtime truth | YAML specs live in Git, but deployed Snowflake Semantic Views are the runtime object for Cortex Analyst and agents |
 
 ## What's Not Built Yet
 

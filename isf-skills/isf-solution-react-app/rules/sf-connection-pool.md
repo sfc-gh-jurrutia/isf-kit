@@ -135,7 +135,7 @@ def return_connection(conn: snowflake.connector.SnowflakeConnection) -> None:
 **Usage in endpoints:**
 
 ```python
-from snowflake_conn import get_connection, return_connection
+from app.snowflake_conn import get_connection, return_connection
 
 @router.get("/api/metrics")
 async def get_metrics():

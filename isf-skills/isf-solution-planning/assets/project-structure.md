@@ -2,6 +2,13 @@
 
 ```
 project/
+├── specs/
+│   └── {solution}/
+│       ├── isf-context.md          # Curated contract
+│       ├── plan.md                 # Planning decisions
+│       ├── tasks.md                # Ordered implementation tasks
+│       └── pipeline-state.yaml     # Canonical phase/gate resume state
+│
 ├── .github/workflows/            # CI/CD for Snowflake (schemachange) & React
 │
 ├── deploy/                       # Deployment orchestration
@@ -27,8 +34,12 @@ project/
 │   │   ├── functions/            # UDFs and UDTFs for business logic
 │   │   ├── roles/                # RBAC and access control configuration
 │   │   └── cortex/               # Cortex object definitions
-│   │       ├── agent.sql         # Agent DDL + tool spec
-│   │       ├── semantic_model.yaml
+│   │       ├── agent_strategic.sql
+│   │       ├── agent_operational.sql
+│   │       ├── agent_technical.sql
+│   │       ├── grants.sql        # Agent grants for persona agents
+│   │       ├── semantic_views/   # YAML specs deployed as Snowflake Semantic Views
+│   │       │   └── operational.yaml
 │   │       └── search_service.sql
 │   │
 │   └── data_engine/              # Synthetic Data & ETL
@@ -38,14 +49,17 @@ project/
 │
 ├── api/                          # FastAPI Backend (deployed to SPCS)
 │   ├── app/
-│   │   ├── main.py               # FastAPI app, CORS, routers
+│   │   ├── main.py               # FastAPI app, CORS, /health, /ready, routers
+│   │   ├── snowflake_conn.py     # Shared Snowflake pool + SPCS detection
+│   │   ├── backend_patterns.py   # Cache + serialization helpers
+│   │   ├── cortex_agent_service.py # Persona agent REST proxy
 │   │   ├── routers/              # Endpoint modules (agent, analyst, health)
 │   │   └── services/             # SnowflakeService, CortexAgentService
 │   ├── requirements.txt
 │   └── Dockerfile
 │
-├── models/                       # Semantic models and Cortex specs
-│   ├── semantic-model.yaml       # Cortex Analyst semantic model
+├── models/                       # Cortex specs and supporting metadata
+│   ├── semantic-view-catalog.yaml # Optional local index of deployed Semantic Views
 │   └── cortex-spec.yaml          # Cortex feature configuration
 │
 ├── docs/                         # Architecture Specs (Markdown)
@@ -89,8 +103,10 @@ generate-data:   # Regenerate synthetic data with seed=42
 |-----------|------|
 | Database migrations | schemachange versioning: `V{major}.{minor}.{patch}__{description}.sql` |
 | Synthetic data | Pre-generated with `seed=42`, committed to repo via `src/data_engine/` |
-| Cortex objects | Defined in `src/database/cortex/`, deployed via migrations |
-| API backend | FastAPI on SPCS, uses `SNOWFLAKE_CONNECTION_NAME` env var |
+| Cortex objects | Defined in `src/database/cortex/`, including `agent_{persona}.sql` + `grants.sql` |
+| Analyst semantic layer | Author YAML Semantic View specs in Git, deploy as Snowflake Semantic Views, reference the deployed objects at runtime |
+| API backend | FastAPI on SPCS, uses `SNOWFLAKE_CONNECTION_NAME` locally and persona env mappings everywhere |
 | React frontend | Vite + TypeScript + Tailwind, built and served from SPCS |
 | Secrets | Never hardcoded — use `.env` locally, Snowflake secrets in production |
 | SPCS deployment | Service spec in `deploy/spcs/`, readiness probe on `8080/health` |
+| Resume | `specs/{solution}/pipeline-state.yaml` is the canonical phase tracker |

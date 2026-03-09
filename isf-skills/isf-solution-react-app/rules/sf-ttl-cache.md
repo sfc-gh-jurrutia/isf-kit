@@ -14,7 +14,7 @@ Cache query results server-side with a time-to-live (TTL) to avoid re-executing 
 **Incorrect (no caching):**
 
 ```python
-from snowflake_conn import get_connection, return_connection
+from app.snowflake_conn import get_connection, return_connection
 
 @router.get("/api/entities")
 async def list_entities():

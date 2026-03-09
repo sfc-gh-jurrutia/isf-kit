@@ -289,7 +289,7 @@ pyyaml
 
 After data is generated and validated:
 
-**Continue to** `../isf-cortex-analyst/SKILL.md` to build the semantic model for Cortex Analyst (if the plan includes text-to-SQL).
+**Continue to** `../isf-cortex-analyst/SKILL.md` to build the Semantic View spec for Cortex Analyst (if the plan includes text-to-SQL).
 
 If Cortex Analyst is not needed, **continue to** `../isf-cortex-search/SKILL.md` (for RAG), `../isf-cortex-agent/SKILL.md` (for agent), or `../isf-solution-react-app/SKILL.md` (for the application layer) — whichever is next per the task list.
 

@@ -110,7 +110,7 @@ JSON References
    └── Use isf-data-generation for synthetic data from Solution Architecture
 
 3. AI LAYER
-   └── Use isf-cortex-analyst for semantic model from Solution Architecture
+   └── Use isf-cortex-analyst for Semantic View specs from Solution Architecture
    └── Use isf-cortex-search for RAG service from Solution Architecture
    └── Use isf-cortex-agent to combine tools
 

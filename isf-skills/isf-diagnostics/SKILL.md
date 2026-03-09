@@ -51,7 +51,7 @@ You are an ISF infrastructure diagnostics expert. You troubleshoot both foundati
 
 - **Agent**: `SHOW CORTEX AGENTS` — verify agent exists and tools resolve
 - **Search**: `SHOW CORTEX SEARCH SERVICES` — verify service exists and is refreshing
-- **Analyst**: Test semantic model with a golden query — verify SQL generation works
+- **Analyst**: Test the deployed Semantic View with a golden query — verify SQL generation works
 - **LLM Functions**: `SELECT SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', 'test')` — verify model availability
 - Check `SHOW CORTEX MODELS` for region-specific model availability
 

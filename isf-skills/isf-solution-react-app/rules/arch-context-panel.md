@@ -35,7 +35,7 @@ function CommandCenter() {
 ```tsx
 function Chat({ onContextUpdate }: { onContextUpdate: (ctx: any) => void }) {
   const handleSend = async (message: string) => {
-    const response = await fetch('/api/chat', {
+    const response = await fetch('/api/agent/chat', {
       method: 'POST',
       body: JSON.stringify({ message })
     })
@@ -57,7 +57,7 @@ function Chat({ onContextUpdate }: { onContextUpdate: (ctx: any) => void }) {
 ## Backend Response Shape
 
 ```python
-@app.post("/api/chat")
+@router.post("/chat")
 async def chat(message: ChatMessage):
     result = await orchestrator.process_message(message.message)
     

@@ -175,7 +175,7 @@ src/database/
 │   └── pdf_chunker.sql      # Table function (UDTF)
 ├── procs/                   # Stored procedures (if complex logic)
 └── cortex/
-    └── agent.sql            # References UDFs as custom tools
+    └── agent_{persona}.sql  # References UDFs as custom tools
 ```
 
 ## Stopping Points

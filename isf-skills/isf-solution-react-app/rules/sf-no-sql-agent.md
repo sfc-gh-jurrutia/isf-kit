@@ -53,7 +53,7 @@ This pattern hand-rolls search (often with broken LIKE queries) and feeds result
 **Correct (REST API via `cortex_agent_service.py` template):**
 
 ```python
-from cortex_agent_service import router as agent_router
+from app.cortex_agent_service import router as agent_router
 
 app.include_router(agent_router, prefix="/api/agent")
 ```

@@ -18,7 +18,7 @@ This is the **entry point** for building complete ISF solutions. It orchestrates
 the full pipeline from requirements intake through deployment and packaging.
 
 Use this skill when the user wants to build a **complete solution**, not just
-run a single skill. For individual tasks (e.g., "create a semantic model"),
+run a single skill. For individual tasks (e.g., "create a Semantic View"),
 invoke the specific skill directly.
 
 ## Pipeline Overview
@@ -30,6 +30,7 @@ Phase 2:   PLAN ──────────── isf-solution-planning
 Phase 3: DATA ARCHITECTURE  isf-data-architecture → isf-data-generation
 Phase 4: AI / CORTEX ────── isf-industry-context + isf-cortex-analyst + isf-cortex-search + isf-python-udf + isf-ml-models → isf-cortex-agent
 Phase 5: APPLICATION ────── isf-solution-react-app (+ isf-solution-style-guide, isf-notebook)
+Phase 5.5: PRE-DEPLOY GATE isf-solution-react-app/rules + isf-solution-testing gate
 Phase 6: DEPLOY ─────────── isf-deployment
 Phase 7: QUALITY ────────── isf-solution-testing → isf-solution-reflection-persona → isf-solution-prepublication-checklist
 Phase 8: PACKAGE ────────── isf-solution-package
@@ -56,7 +57,7 @@ Where should we start?
 - Option 1 → Proceed to Phase 1
 - Option 2 → Proceed to Phase 2
 - Option 3 → **Ask** which phase, then jump to it
-- Option 4 → **Read** the project directory and `specs/` to detect current state, then resume at the appropriate phase
+- Option 4 → **Read** `specs/{solution}/pipeline-state.yaml` first, then validate the artifacts for the recorded phase before resuming
 
 ---
 
@@ -154,11 +155,11 @@ Phase 3 ────▶├── 4c: Python UDFs   ──├──▶ 4e: Cortex
 
 Skip any that aren't needed per the plan's archetype.
 
-#### Step 4a: Cortex Analyst (if semantic model needed)
+#### Step 4a: Cortex Analyst (if Semantic Views are needed)
 
 **Load** `../isf-cortex-analyst/SKILL.md`
 
-Output: `src/database/cortex/semantic_model.yaml` (+ ML insights model if notebooks used)
+Output: `src/database/cortex/semantic_views/*.yaml` authored in Git and deployed as Semantic Views in Snowflake
 
 #### Step 4b: Cortex Search (if RAG / document search needed)
 
@@ -184,9 +185,22 @@ Output: `notebooks/*.ipynb`, ML schema populated
 
 **Load** `../isf-cortex-agent/SKILL.md`
 
-Output: `src/database/cortex/agent.sql`
+**Actions:**
+1. Derive tools from persona JTBD (one agent per persona)
+2. Generate per-persona agent DDL files
+3. Create action tool stored procedures and ML UDFs
+4. Deploy agents and run pre-flight checks (verify all referenced objects exist)
+5. **Test each persona agent independently:**
+   - Send one sample question per tool type (Analyst, Search, Action, ML)
+   - Verify correct tool is selected for each question
+   - Confirm SSE streaming returns expected event types
+   - Validate action tools execute without errors
+   - Check that `data_to_chart` produces valid Vega-Lite specs (if configured)
+6. Record test results per persona
 
-**⚠️ MANDATORY CHECKPOINT**: Review all Cortex objects before proceeding to application layer.
+Output: `src/database/cortex/agent_{persona}.sql` (one per persona), `src/database/cortex/grants.sql`, `src/database/functions/*.sql` (action tools)
+
+**⚠️ MANDATORY CHECKPOINT**: Review per-persona agent specs and test results before proceeding to application layer. **Do NOT proceed to Phase 5 if any persona agent fails its tool routing test.** Fix agent instructions or tool descriptions first.
 
 **After completion → Continue to Phase 5.**
 
@@ -225,6 +239,23 @@ Output: `src/ui/` + `api/`
 Output: `notebooks/*.ipynb`
 
 **⚠️ MANDATORY CHECKPOINT**: Review application code and notebook output before deployment.
+
+**After completion → Continue to Phase 5.5.**
+
+---
+
+### Phase 5.5: Pre-Deploy Gate
+
+**Goal:** Catch fragile runtime failures before anything is shipped to SPCS.
+
+Use the app backend checklist plus the testing gate to verify:
+1. Required tables/views and API dependencies exist
+2. `/ready` and `/api/agent/warmup` succeed
+3. Persona agent env mappings match generated `agent_{persona}.sql` files
+4. Backend import paths are deployment-safe (`from app...`)
+5. One end-to-end agent smoke call succeeds
+
+**⚠️ MANDATORY CHECKPOINT**: Do not continue to deployment until all five checks pass. If any check fails, return to the owning skill (planning, Cortex, or app) and fix it there.
 
 **After completion → Continue to Phase 6.**
 
@@ -296,14 +327,37 @@ Final gate: Ship / No Ship / Conditional.
 
 If the user returns to continue a project:
 
-1. **Read** the project directory structure to detect what exists
-2. **Check** `specs/{solution}/` for `isf-context.md`, `plan.md`, `tasks.md`
-3. **Check** `src/database/migrations/` for migration files
-4. **Check** `src/database/cortex/` for Cortex objects
-5. **Check** `src/ui/` for application code
-6. **Check** deployment status if deploy artifacts exist
+1. **Read** `specs/{solution}/pipeline-state.yaml`
+2. **Verify** the recorded `current_phase`, `next_phase`, and latest gate results
+3. **Validate** the artifacts required for that recorded phase
+4. **Resume** only if both the artifact check and the recorded gate status pass
+5. **If the state file is missing or stale**, reconstruct it from the earliest trustworthy artifact and stop for user confirmation
 
-**Resume at the earliest incomplete phase.**
+**Resume at the earliest incomplete phase with a passing gate.**
+
+## Pipeline State Contract
+
+The engine should maintain `specs/{solution}/pipeline-state.yaml` as the canonical resume file.
+
+```yaml
+solution: my_solution
+current_phase: phase_5_5_predeploy_gate
+next_phase: phase_6_deploy
+artifacts:
+  spec: true
+  plan: true
+  migrations: true
+  cortex_agents: true
+  app: true
+gates:
+  phase_2_plan_approved: true
+  phase_4_agent_validation: true
+  phase_5_5_predeploy_gate: false
+last_validated_at: YYYY-MM-DD
+resume_notes: "Warmup passes locally; agent smoke call still failing for technical persona."
+```
+
+Update this file after every phase checkpoint. File presence alone is not enough to resume.
 
 ## Skill Reference
 
@@ -336,8 +390,21 @@ If the user returns to continue a project:
 - ✋ After Phase 1: Approve curated `isf-context.md`
 - ✋ After Phase 2: Approve architecture plan and task breakdown
 - ✋ After Phase 3: Review migrations and verify hidden discovery in seed data
-- ✋ After Phase 4: Review Cortex objects
+- ✋ After Phase 4: Review Cortex objects + per-persona agent test results
 - ✋ After Phase 5: Review application code
 - ✋ After Phase 6: Verify deployment health
 - ✋ After Phase 7: Release decision (Ship / No Ship / Conditional)
 - ✋ After Phase 8: Review final deliverables
+
+## Output
+
+- A complete ISF project that has progressed through curated spec, planning, build, deploy, test, and packaging phases
+- Canonical artifacts in `specs/{solution}/` plus the scaffolded project directory for resumed runs
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Resume point is unclear | Read `specs/{solution}/pipeline-state.yaml` first, then validate the artifacts for that phase |
+| A downstream skill tries to re-decide an upstream choice | Return to the earliest owning artifact (`isf-context.md` or `plan.md`) and correct it there |
+| A quality gate fails | Stop the pipeline, fix the failing phase, and re-run the gate before proceeding |

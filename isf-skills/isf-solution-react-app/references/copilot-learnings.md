@@ -1,52 +1,173 @@
-# Additional Learnings from Copilot Implementation
+# Copilot Implementation Patterns
 
-## Critical Production Patterns (from AutoGL Yield Optimization)
+## Agent-First Architecture
 
-### 1. Race Condition Prevention for Pending Prompts
+All ISF copilot applications use Cortex Agents as the AI backbone. The agent handles tool routing, intent classification, and orchestration automatically. Do NOT build manual Python intent classification.
 
-When using global state to trigger chat messages from other components (e.g., clicking a button sets `pendingPrompt`), useEffect can fire multiple times causing duplicate messages.
+### Agent-Proxy Pattern
 
-**Solution**: Use a ref to track what's already been processed:
-
-```typescript
-const processingPromptRef = useRef<string | null>(null)
-
-useEffect(() => {
-  // Only process if: prompt exists, not streaming, AND not already processing this prompt
-  if (pendingPrompt && status !== 'streaming' && processingPromptRef.current !== pendingPrompt) {
-    processingPromptRef.current = pendingPrompt  // Mark as processing
-    setPendingPrompt(null)  // Clear from global state immediately
-    sendMessage(pendingPrompt)
-  }
-}, [pendingPrompt, status])
+```
+React (useCortexAgent)
+  → fetch('/api/agent/run', { persona, message, thread_id })
+    → FastAPI (cortex_agent_service.py)
+      → Snowflake Cortex Agent REST API
+        → SSE events stream back through all layers
 ```
 
-### 2. SSE Buffer Management
+The `persona` parameter routes to the correct persona agent via `CORTEX_AGENT_PERSONA_{PERSONA}` env vars. See `cortex_agent_service.py` template.
+
+### Agent SSE Frontend Patterns
 
 SSE chunks may split mid-line. Always buffer incomplete lines:
 
 ```typescript
 buffer += decoder.decode(value, { stream: true })
 const lines = buffer.split('\n')
-buffer = lines.pop() || ''  // Keep incomplete line for next iteration
+buffer = lines.pop() || ''
 ```
 
-### 3. Context Injection Pattern
+Handle event types from `cortex_agent_service.py`:
 
-Prepend page/selection context to user prompts for contextual AI responses:
+| Frontend Event | UI Action |
+|---|---|
+| `text_delta` | Append to message content (typewriter) |
+| `tool_start` | Show tool execution indicator |
+| `tool_result` | Update context panel with results |
+| `analyst_delta` | Show SQL + result set in context panel |
+| `table` | Render data table in message |
+| `chart` | Render Vega-Lite chart from spec |
+| `annotation` | Show source citation |
+| `reasoning` | Show agent thinking animation |
+| `status` | Update agent status indicator |
+| `message_complete` | Finalize message, enable input |
+| `metadata` | Store message_id for thread continuation |
+
+## Persona Page Navigation
+
+### Route Structure
+
+```
+/                    → Redirect to /operational (default)
+/strategic           → VP/Director page (CommandCenter aggregate)
+/operational         → Manager page (CommandCenter full)
+/technical           → Analyst page (AnalyticsExplorer + Agent)
+```
+
+### Sidebar Navigation
+
+```tsx
+const PERSONA_NAV = [
+  { path: '/strategic', label: 'Strategic', icon: Briefcase },
+  { path: '/operational', label: 'Operations', icon: Shield },
+  { path: '/technical', label: 'Technical', icon: Microscope },
+]
+```
+
+### Per-Page Thread Management
+
+Each persona page manages its own agent thread independently. Navigating between pages does NOT share conversation history. Use a Zustand store keyed by persona:
+
+```typescript
+interface PersonaChatState {
+  threads: Record<string, { threadId: string; messages: CortexMessage[] }>
+  getThread: (persona: string) => { threadId: string; messages: CortexMessage[] }
+}
+```
+
+## Action Tool UX Patterns
+
+When the agent invokes action tools (stored procedures for alerts, tickets, exports), the frontend must provide clear feedback.
+
+### Confirmation Dialog
+
+Before executing destructive or external actions, show a confirmation:
+
+```tsx
+function ActionConfirmation({ action, onConfirm, onCancel }: ActionConfirmProps) {
+  return (
+    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+      <p className="font-medium text-amber-300">Confirm action: {action.name}</p>
+      <p className="text-sm text-slate-300 mt-1">{action.description}</p>
+      <div className="flex gap-2 mt-3">
+        <Button variant="primary" onClick={onConfirm}>Confirm</Button>
+        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+      </div>
+    </div>
+  )
+}
+```
+
+### Progress Indicators
+
+Show tool execution progress during `tool_status` events:
+
+```tsx
+function ToolProgress({ toolName, status }: { toolName: string; status: string }) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-slate-400">
+      <Loader2 className="h-3 w-3 animate-spin" />
+      <span>Running {toolName}: {status}</span>
+    </div>
+  )
+}
+```
+
+### Success/Failure Toasts
+
+After action tool completion, show result:
+
+```tsx
+if (event.event_type === 'tool_result' && event.status === 'success') {
+  toast.success(`${event.tool_name} completed successfully`)
+} else if (event.event_type === 'tool_result' && event.status === 'error') {
+  toast.error(`${event.tool_name} failed: ${event.content}`)
+}
+```
+
+## Feedback Integration
+
+Wire thumbs up/down to the feedback endpoint:
+
+```tsx
+async function submitFeedback(requestId: string, positive: boolean, persona: string) {
+  await fetch('/api/agent/feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orig_request_id: requestId, positive, persona }),
+  })
+}
+```
+
+## Critical Production Patterns
+
+### Race Condition Prevention for Pending Prompts
+
+When using global state to trigger chat messages from other components, useEffect can fire multiple times.
+
+```typescript
+const processingPromptRef = useRef<string | null>(null)
+
+useEffect(() => {
+  if (pendingPrompt && status !== 'streaming' && processingPromptRef.current !== pendingPrompt) {
+    processingPromptRef.current = pendingPrompt
+    setPendingPrompt(null)
+    sendMessage(pendingPrompt)
+  }
+}, [pendingPrompt, status])
+```
+
+### Context Injection Pattern
+
+Prepend page/selection context to user prompts:
 
 ```typescript
 let contextualPrompt = input
 if (selectedAsset) {
-  contextualPrompt = `[Context: User is viewing asset "${selectedAsset.asset_name}" (${selectedAsset.asset_type})]\n\n${input}`
-} else if (chatContext) {
-  contextualPrompt = `[Context: ${chatContext}]\n\n${input}`
+  contextualPrompt = `[Context: User is viewing asset "${selectedAsset.name}" (${selectedAsset.type})]\n\n${input}`
 }
 ```
 
-### 4. Zustand Chat State
-
-Minimal chat state management pattern:
+### Zustand Chat State
 
 ```typescript
 interface ChatState {
@@ -59,7 +180,7 @@ interface ChatState {
 }
 ```
 
-### 5. FastAPI SSE Headers
+### FastAPI SSE Headers
 
 Critical headers for streaming through proxies:
 
@@ -71,69 +192,76 @@ headers={
 }
 ```
 
-### 6. Markdown Rendering with Tailwind
-
-Use prose classes with size overrides:
+### Markdown Rendering with Tailwind
 
 ```tsx
-<div className="prose prose-sm prose-invert max-w-none 
+<div className="prose prose-sm prose-invert max-w-none
   prose-p:my-1 prose-code:text-xs prose-code:bg-slate-700/50">
   <ReactMarkdown>{message.content}</ReactMarkdown>
 </div>
 ```
 
-## Patterns to Add to Skill
+### Chart Color Consistency
 
-### 1. Multi-Agent Orchestration Pattern (HIGH impact)
+Define colors globally for multi-series charts:
 
-The copilot implements a sophisticated **intent classification → agent routing** pattern:
+```tsx
+const ENTITY_COLORS: Record<string, string> = {
+  'Entity-A': '#3b82f6',
+  'Entity-B': '#10b981',
+  'Entity-C': '#f59e0b',
+}
+```
+
+### Context Panel Pattern (UI)
+
+Three-panel layout with context propagation:
 
 ```
-User Message → Orchestrator → Intent Classification → Route to Agent(s) → Aggregate Response
+[Left: Live Parameters/Alerts] [Center: Chat] [Right: Context Panel]
+                                    ↓
+                             onContextUpdate
+                                    ↓
+                        Context panel updates with:
+                        - Query results (from analyst_delta)
+                        - Search results (from tool_result)
+                        - Chart specs (from chart event)
 ```
 
-**Key components:**
-- `AgentOrchestrator` - Central coordinator with regex-based intent classification
-- `BaseAgent` - Abstract base with `process()` and `get_tools()` methods
-- Specialized agents: `HistorianAgent` (RAG search), `AdvisorAgent` (recommendations), `WatchdogAgent` (monitoring)
+---
 
-**Intent categories:**
-- `analytical` - SQL/data queries → Cortex Analyst fallback to direct SQL
-- `search/history` - RAG queries → Cortex Search
-- `recommend` - Parameter suggestions → Offset well analysis
-- `status/current` - Real-time data → Direct queries
-- `comparison` - Multi-well analysis → Aggregation queries
-- `general` - Fallback → Multiple agents
+## Legacy Reference (Deprecated Patterns)
 
-### 2. Cortex Service Integration Patterns
+> The patterns below are kept for reference when maintaining older solutions.
+> New solutions MUST use the agent-proxy pattern above.
 
-> **Important:** The SQL patterns below (SEARCH_PREVIEW, ANALYST, COMPLETE)
-> are shown for reference only. In a copilot app with a Cortex Agent, these
-> services are configured as **agent tools** — do NOT call them manually
-> from API chat endpoints. Use `cortex_agent_service.py` to invoke the
-> agent, which orchestrates these tools automatically. See `rules/sf-no-sql-agent.md`.
+### SQL-Based Cortex Service Calls (DEPRECATED)
+
+> Do NOT use these in copilot apps with a Cortex Agent. These services are
+> configured as **agent tools** -- the agent orchestrates them automatically.
+> See `rules/sf-no-sql-agent.md`.
 
 **Cortex Search with SEARCH_PREVIEW:**
 ```python
 sql = f"""
 SELECT SNOWFLAKE.CORTEX.SEARCH_PREVIEW(
     'DATABASE.SCHEMA.SEARCH_SERVICE',
-    '{{"query": "{query}", "columns": [...], "limit": {limit}, "filter": ...}}'
+    '{{"query": "{query}", "columns": [...], "limit": {limit}}}'
 ) as RESULT
 """
 ```
 
-**Cortex Analyst with Semantic Model:**
+**Cortex Analyst:**
 ```python
 sql = f"""
 SELECT SNOWFLAKE.CORTEX.ANALYST(
-    '@DATABASE.SCHEMA.STAGE/semantic_model.yaml',
+    '@DATABASE.SCHEMA.STAGE/semantic_views/operational.yaml',
     '{question}'
 ) as RESPONSE
 """
 ```
 
-**Cortex LLM for Generation:**
+**Cortex LLM for Generation (data generation only, not copilot chat):**
 ```python
 sql = f"""
 SELECT SNOWFLAKE.CORTEX.COMPLETE(
@@ -143,193 +271,15 @@ SELECT SNOWFLAKE.CORTEX.COMPLETE(
 """
 ```
 
-### 3. WebSocket Real-Time Pattern
+### Manual Multi-Agent Orchestration (DEPRECATED)
+
+> Replaced by Cortex Agent tool routing via `orchestration` instructions.
+> See `rules/arch-multi-agent.md` for the correct pattern.
 
 ```python
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: Dict[str, List[WebSocket]] = {}
-    
-    async def connect(self, websocket: WebSocket, entity_id: str):
-        await websocket.accept()
-        if entity_id not in self.active_connections:
-            self.active_connections[entity_id] = []
-        self.active_connections[entity_id].append(websocket)
-    
-    async def broadcast(self, entity_id: str, data: dict):
-        for conn in self.active_connections.get(entity_id, []):
-            await conn.send_json(data)
-
-@app.websocket("/ws/realtime/{entity_id}")
-async def websocket_endpoint(websocket: WebSocket, entity_id: str):
-    await manager.connect(websocket, entity_id)
-    while True:
-        data = await fetch_latest_data(entity_id)
-        await websocket.send_json(data)
-        await asyncio.sleep(5)  # Polling interval
+# DEPRECATED — do not use in new solutions
+class AgentOrchestrator:
+    def process_message(self, message):
+        intent = self._classify_intent(message)
+        if intent == "analytical": return self.analyst.run(message)
 ```
-
-### 4. Context Panel Pattern (UI)
-
-Three-panel layout with context propagation:
-```
-[Left: Live Parameters/Alerts] [Center: Chat] [Right: Context Panel]
-                                    ↓
-                             onContextUpdate
-                                    ↓
-                        Context panel updates with:
-                        - Query results
-                        - DDR search results
-                        - Offset analysis data
-                        - Recommendations
-```
-
-### 5. Snow CLI as Query Interface
-
-Instead of direct `snowflake-connector-python`, uses Snow CLI for auth simplicity:
-
-```python
-cmd = [
-    self.snow_path, "sql", 
-    "-c", self.connection_name,
-    "--format", "JSON",
-    "-q", query
-]
-result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-```
-
-**Benefits:**
-- Leverages existing CLI auth config
-- No credential management in code
-- JSON output for reliable parsing
-
-### 6. Fallback Query Patterns
-
-**Pattern**: Cortex Analyst → Pattern-matched SQL → Error message
-
-```python
-def handle_analytical(message):
-    # Try Cortex Analyst first
-    result = cortex_analyst_query(message)
-    if result.get("results"):
-        return result
-    
-    # Fallback to pattern-matched SQL
-    result = direct_sql_query(message)
-    if result.get("results"):
-        return result
-    
-    # Explain what we can answer
-    return {"response": "I can answer: • How many wells? • List wells..."}
-```
-
-### 7. Domain-Specific LLM Prompting (Toolbox Service)
-
-For domain-specific generation, structure prompts with:
-1. Role definition
-2. Context data (JSON)
-3. Specific output requirements
-4. Terminology guidance
-
-```python
-prompt = f"""You are a drilling operations assistant...
-
-Context:
-- Well: {well_id}
-- Current Depth: {current_depth}m
-
-Historical Watch Points Found:
-{json.dumps(watch_points, indent=2)}
-
-Generate a brief (2-3 sentences) executive summary...
-Be concise and actionable. Use technical drilling terminology."""
-```
-
-### 8. Chart Color Consistency
-
-Define colors globally for multi-series charts:
-
-```tsx
-const ENTITY_COLORS: Record<string, string> = {
-  'Entity-A': '#3b82f6',
-  'Entity-B': '#10b981',
-  'Entity-C': '#f59e0b',
-  // ...
-}
-
-// Use in both selection chips and chart lines
-<button style={{ backgroundColor: ENTITY_COLORS[name] }}>
-<Line stroke={ENTITY_COLORS[name]} />
-```
-
-### 9. Recharts Patterns for Snowflake Data
-
-**Days vs Depth (inverted Y-axis):**
-```tsx
-<LineChart data={data}>
-  <YAxis reversed domain={['dataMin', 'dataMax']} />
-  {entities.map(name => (
-    <Line key={name} dataKey={name} stroke={COLORS[name]} />
-  ))}
-</LineChart>
-```
-
-**Parameter vs Depth with gradients:**
-```tsx
-<AreaChart>
-  <defs>
-    {entities.map(name => (
-      <linearGradient key={name} id={`grad-${name}`}>
-        <stop offset="5%" stopColor={COLORS[name]} stopOpacity={0.3} />
-        <stop offset="95%" stopColor={COLORS[name]} stopOpacity={0} />
-      </linearGradient>
-    ))}
-  </defs>
-  {entities.map(name => (
-    <Area key={name} fill={`url(#grad-${name})`} stroke={COLORS[name]} />
-  ))}
-</AreaChart>
-```
-
-### 10. Agent Status Indicators
-
-Visual pattern for multi-agent status:
-
-```tsx
-const agents = [
-  { name: 'Orchestrator', icon: Brain, status: 'idle' },
-  { name: 'Historian', icon: Search, status: 'idle' },
-  { name: 'Advisor', icon: Database, status: 'idle' },
-  { name: 'Watchdog', icon: Shield, status: 'active' },
-]
-
-{agents.map(agent => (
-  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-navy-700/50">
-    <agent.icon size={14} className={agent.status === 'active' ? 'text-emerald-400' : 'text-slate-400'} />
-    <div className={`w-1.5 h-1.5 rounded-full ${statusColor(agent.status)}`} />
-  </div>
-))}
-```
-
-## New Rules to Add
-
-### `sf-cortex-search` (HIGH)
-Use SEARCH_PREVIEW for RAG queries with JSON filter syntax.
-
-### `sf-cortex-analyst-fallback` (HIGH)
-Always implement SQL fallback when Cortex Analyst unavailable.
-
-### `sf-cortex-llm-prompts` (MEDIUM)
-Structure prompts with role, context JSON, and output requirements.
-
-### `arch-multi-agent` (HIGH)
-Use intent classification to route to specialized agent handlers.
-
-### `arch-context-propagation` (HIGH)
-Pass context from chat responses to update sidebar panels.
-
-### `ux-agent-status` (MEDIUM)
-Show visual status indicators for background agent activity.
-
-### `ux-entity-colors` (MEDIUM)
-Define consistent colors for entities across selection UI and charts.
