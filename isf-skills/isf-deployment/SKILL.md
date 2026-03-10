@@ -53,6 +53,7 @@ make test            # Run all tests
 |------|---------|-------------|
 | `references/ddl.md` | DDL constraints (CHECK unsupported, PK/FK metadata-only) | When generating or reviewing DDL |
 | `references/nginx-spcs-pattern.md` | Multi-process SPCS: nginx + uvicorn + supervisord | When app needs WebSocket or multi-service container |
+| `references/spcs-connectivity.md` | SPCS networking, EAI setup, OAuth, service role grants, troubleshooting cascade | When deploying to SPCS (Stage 6) |
 | `assets/deploy.sh` | Deploy script template (copied into project) | Project scaffold |
 | `assets/run.sh` | Runtime operations template | Project scaffold |
 | `assets/clean.sh` | Teardown template with correct deletion order | Project scaffold |
@@ -71,6 +72,8 @@ make test            # Run all tests
 
 2. SETUP INFRASTRUCTURE
    └── Run deploy/setup.sql (database, schemas, roles, warehouse, grants)
+   └── Create Network Rule + External Access Integration for SPCS connectivity
+   └── Grant service role privileges on database, schemas, warehouse
    └── Verify objects created
 
 3. RUN MIGRATIONS
@@ -90,10 +93,10 @@ make test            # Run all tests
 
 6. DEPLOY APP TO SPCS
    └── Create image repository
-   └── Build Docker image (multi-stage: React frontend + FastAPI backend)
+   └── Build Docker image (--platform linux/amd64)
    └── Push image to Snowflake registry
    └── Create compute pool
-   └── Create service from deploy/spcs/service-spec.yaml
+   └── Create service with EXTERNAL_ACCESS_INTEGRATIONS
    └── Wait for READY status
 
    ⚠️ STOP: Present deployment summary and service URL.
@@ -320,7 +323,9 @@ You MUST set these in the service spec (not auto-injected):
 | `CORTEX_AGENT_SCHEMA` | `CORTEX` | Match the schema containing agent DDL |
 | `CORTEX_AGENT_PERSONA_OPERATIONAL` | `MY_PROJECT_OPERATIONAL_AGENT` | Required for multi-persona solutions |
 
-The `snowflake_conn.py` template detects SPCS via `/snowflake/session/token` and uses OAuth automatically. Never use `connection_name` in SPCS -- there is no `~/.snowflake/connections.toml` in containers.
+The `snowflake_conn.py` template detects SPCS via `/snowflake/session/token` and uses OAuth automatically. Never use `connection_name` in SPCS -- there is no `~/.snowflake/connections.toml` in containers. Do NOT pass a `role` parameter in the connection -- the SPCS OAuth token uses the service owner role automatically.
+
+**Warning:** Do NOT override `SNOWFLAKE_HOST` or `SNOWFLAKE_ACCOUNT` in the service spec -- the auto-injected values are correct for container-to-Snowflake connectivity. The account uses org-account format (e.g., `SFSENORTHAMERICA-JURRUTIA_AWS1`).
 Use `CORTEX_AGENT_NAME` only for single-persona solutions. Multi-persona solutions must use `CORTEX_AGENT_PERSONA_{PERSONA}` entries that match the generated `agent_{persona}.sql` files.
 
 ### Deployment Commands
@@ -343,10 +348,11 @@ snow spcs compute-pool create {POOL} \
   --auto-suspend-secs 300 \
   --if-not-exists -c ${CONNECTION}
 
-# Create service
+# Create service (with External Access Integration for Snowflake connectivity)
 snow spcs service create {SERVICE} \
   --compute-pool {POOL} \
   --spec-path deploy/spcs/service-spec.yaml \
+  --external-access-integrations {PROJECT}_SF_ACCESS \
   -c ${CONNECTION}
 
 # Wait for ready
@@ -367,24 +373,45 @@ snow spcs service status {SERVICE} -c ${CONNECTION}
 
 See `assets/clean.sh` for the template with correct ordering.
 
-## Network Egress (When Required)
+## Network Egress
 
-For SPCS containers that need external access (PyPI, external APIs):
+### Snowflake Host Egress (Required)
+
+Every ISF solution requires the container to connect back to Snowflake. Add to `deploy/setup.sql`:
 
 ```sql
-CREATE OR REPLACE NETWORK RULE {PROJECT}_EGRESS_RULE
+CREATE OR REPLACE NETWORK RULE {DB}.{SCHEMA}.{PROJECT}_SF_EGRESS_RULE
+    TYPE = HOST_PORT
+    MODE = EGRESS
+    VALUE_LIST = ('{account-identifier}.snowflakecomputing.com:443');
+
+CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION {PROJECT}_SF_ACCESS
+    ALLOWED_NETWORK_RULES = ({DB}.{SCHEMA}.{PROJECT}_SF_EGRESS_RULE)
+    ENABLED = TRUE;
+
+GRANT USAGE ON INTEGRATION {PROJECT}_SF_ACCESS TO ROLE {SERVICE_ROLE};
+```
+
+Reference `{PROJECT}_SF_ACCESS` in the `CREATE SERVICE` command (see Deployment Commands above). Without this, the container cannot resolve the Snowflake hostname and crashes on startup.
+
+See `references/spcs-connectivity.md` for the full SPCS connectivity walkthrough including service role grants, Python connection pattern, and troubleshooting cascade.
+
+### External API Egress (When Required)
+
+For containers that also need external access (PyPI, third-party APIs):
+
+```sql
+CREATE OR REPLACE NETWORK RULE {DB}.{SCHEMA}.{PROJECT}_EXTERNAL_EGRESS_RULE
     TYPE = HOST_PORT
     MODE = EGRESS
     VALUE_LIST = ('pypi.org:443', 'files.pythonhosted.org:443');
 
 CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION {PROJECT}_EXTERNAL_ACCESS
-    ALLOWED_NETWORK_RULES = ({PROJECT}_EGRESS_RULE)
+    ALLOWED_NETWORK_RULES = ({DB}.{SCHEMA}.{PROJECT}_EXTERNAL_EGRESS_RULE)
     ENABLED = TRUE;
 
-GRANT USAGE ON INTEGRATION {PROJECT}_EXTERNAL_ACCESS TO ROLE {PROJECT}_ROLE;
+GRANT USAGE ON INTEGRATION {PROJECT}_EXTERNAL_ACCESS TO ROLE {SERVICE_ROLE};
 ```
-
-Reference the integration in the service creation SQL.
 
 ## SPCS Environment Auto-Detection
 
@@ -424,6 +451,25 @@ def get_oauth_token() -> str:
 ```
 
 ## Grant Access SQL
+
+### Service Role Grants (Required for SPCS OAuth)
+
+The service owner role must have privileges on all objects the container accesses. Add to `deploy/setup.sql`:
+
+```sql
+GRANT USAGE ON DATABASE {DATABASE} TO ROLE {SERVICE_ROLE};
+GRANT USAGE ON SCHEMA {DATABASE}.{SCHEMA} TO ROLE {SERVICE_ROLE};
+GRANT USAGE ON SCHEMA {DATABASE}.DATA_MART TO ROLE {SERVICE_ROLE};
+GRANT USAGE ON WAREHOUSE {WAREHOUSE} TO ROLE {SERVICE_ROLE};
+GRANT SELECT ON ALL TABLES IN SCHEMA {DATABASE}.{SCHEMA} TO ROLE {SERVICE_ROLE};
+GRANT SELECT ON ALL VIEWS IN SCHEMA {DATABASE}.{SCHEMA} TO ROLE {SERVICE_ROLE};
+GRANT SELECT ON ALL TABLES IN SCHEMA {DATABASE}.DATA_MART TO ROLE {SERVICE_ROLE};
+GRANT SELECT ON ALL VIEWS IN SCHEMA {DATABASE}.DATA_MART TO ROLE {SERVICE_ROLE};
+```
+
+Without these grants, the container gets "Client is unauthorized to use Snowpark Container Services OAuth token" even though the token file exists.
+
+### Consumer Role Grants
 
 Generate a consumer role for the deployed application:
 
@@ -467,11 +513,16 @@ Auto-suspend is configured at creation (`--auto-suspend-secs 300`). For demo env
 
 - [ ] `.env` configured with connection details
 - [ ] `deploy/setup.sql` creates database, schemas, roles, warehouse
+- [ ] External Access Integration created for `{SNOWFLAKE_HOST}:443`
+- [ ] Service role granted USAGE on database, schemas, and warehouse
+- [ ] Service role granted SELECT on required tables/views
+- [ ] `EXTERNAL_ACCESS_INTEGRATIONS` included in service creation command
 - [ ] `src/database/migrations/` has versioned DDL files
 - [ ] `src/data_engine/output/` has seed Parquet files with manifest.json
 - [ ] `src/database/cortex/` uses `agent_{persona}.sql` + `grants.sql` (no stale singular `agent.sql`)
-- [ ] `deploy/spcs/Dockerfile` builds successfully locally
+- [ ] `deploy/spcs/Dockerfile` builds successfully locally (`--platform linux/amd64`)
 - [ ] `deploy/spcs/service-spec.yaml` has correct image path
+- [ ] Service spec does NOT set `SNOWFLAKE_HOST` or `SNOWFLAKE_ACCOUNT` (auto-injected)
 - [ ] Readiness probe configured on port 8080, path /health
 - [ ] Persona agent env vars in service spec match generated agent files
 - [ ] No hardcoded credentials in any file
@@ -500,6 +551,9 @@ Auto-suspend is configured at creation (`--auto-suspend-secs 300`). For demo env
 | No active warehouse | Connection succeeds but queries fail | Add `SNOWFLAKE_WAREHOUSE` to service-spec.yaml env block |
 | ARM image crash on SPCS | Built on M-series Mac without platform flag | Always use `docker build --platform linux/amd64` |
 | Agent mapping fails at runtime | Service spec still uses singular `CORTEX_AGENT_NAME` for a multi-persona app | Set `CORTEX_AGENT_PERSONA_{PERSONA}` vars to match `agent_{persona}.sql` outputs |
+| DNS resolution failure in container | `snow spcs service logs` shows `Name or service not known` | Create network rule + EAI for Snowflake host, recreate service. See `references/spcs-connectivity.md` |
+| Service endpoint not found | Service not READY — container crashed on startup | Fix DNS (Error 1 above), verify pool ACTIVE, check endpoint is `public: true`, issue endpoint grant |
+| OAuth token unauthorized | `/snowflake/session/token` exists but queries fail with "unauthorized" | Grant service role USAGE on DB/schema/WH + SELECT on tables/views. Do not pass `role` parameter in connection |
 
 ## Output
 

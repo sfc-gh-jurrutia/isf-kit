@@ -1,0 +1,195 @@
+1. SNOWHOUSE.SALES.INDUSTRY → canonical industry tags per account
+What it is
+
+One row per account × date with both D&B and Snowflake “source‑of‑truth” industry mappings:
+Key fields:
+
+DS – snapshot date
+ACCOUNT_ID, ACCOUNT_NAME
+DNB_INDUSTRY, DNB_SUBINDUSTRY – D&B view
+SOT_INDUSTRY, SOT_SUBINDUSTRY – Snowflake “Source of Truth” industry mapping
+SOURCE_OF_TRUTH – indicates which system is authoritative for this row
+OW_TIMESTAMP, OW_EMAIL – who last overwrote the record
+Why it’s useful
+
+Gives you a normalized, Snowflake‑approved industry label per account – ideal for:
+“What industry/sub‑industry is this account in?”
+Joining SFDC/ISF objects to SOT_INDUSTRY for consistent GTM.
+View to create (latest SOT per account):
+
+CREATE OR REPLACE VIEW GTM_BRAIN.PUBLIC.ACCOUNT_INDUSTRY_V AS
+SELECT
+  ACCOUNT_ID,
+  ACCOUNT_NAME,
+  SOT_INDUSTRY        AS industry_name,
+  SOT_SUBINDUSTRY     AS subindustry_name,
+  DNB_INDUSTRY,
+  DNB_SUBINDUSTRY,
+  SOURCE_OF_TRUTH,
+  DS                  AS as_of_date,
+  OW_TIMESTAMP,
+  OW_EMAIL
+FROM SNOWHOUSE.SALES.INDUSTRY
+QUALIFY DS = MAX(DS) OVER (PARTITION BY ACCOUNT_ID);
+sql
+
+2. SNOWHOUSE.SALES.ENRICHED_ACCOUNTS_DAILY → GTM‑friendly account dimension
+What it is
+
+A curated, enriched account grain (1 row per account × day), already combining:
+
+CRM (ARR, APS, segments, ownership)
+Territory model (REGION, DISTRICT, TERRITORY, GEO, NAMED_ACCOUNT)
+Firmographics (address, DUNS, revenue, employee counts, Fortune rank)
+Why it’s useful
+
+Almost everything a GTM skill needs about an account in one place:
+Who owns it, what segment, ARR, APS, location, company size.
+View to create (latest snapshot, curated columns):
+
+CREATE OR REPLACE VIEW GTM_BRAIN.PUBLIC.ACCOUNT_ENRICHED_V AS
+SELECT
+  ACCOUNT_ID,
+  ACCOUNT_NAME,
+  ACCOUNT_TYPE,
+  ACCOUNT_STATUS,
+  ACCOUNT_CREATED_DATE,
+  ACCOUNT_PARENT_ID,
+  ULTIMATE_PARENT_ID,
+  REP_ID,
+  REP_NAME,
+  RVP,
+  GVP,
+  DM,
+  REGION,
+  DISTRICT,
+  TERRITORY,
+  GEO,
+  SUB_TERRITORY,
+  NAMED_ACCOUNT,
+  ARR,
+  APS,
+  DUNSNUMBER,
+  PARENT_DUNSNUMBER,
+  STREET,
+  CITY,
+  STATE,
+  COUNTRY,
+  POSTAL_CODE,
+  ES_WEBSITE     AS website,
+  PHONE,
+  INDUSTRY,
+  SUBINDUSTRY,
+  COUNTRY_ISO_CODE,
+  STATE_ISO_CODE,
+  ANNUAL_REVENUE,
+  DNB_EMPLOYEE_COUNT,
+  LSI_EMPLOYEE_COUNT,
+  FORTUNE_1000_RANK,
+  DS AS as_of_date
+FROM SNOWHOUSE.SALES.ENRICHED_ACCOUNTS_DAILY
+QUALIFY DS = MAX(DS) OVER (PARTITION BY ACCOUNT_ID);
+sql
+
+This becomes your primary GTM account dimension in the brain.
+
+3. SNOWHOUSE.SALES.COMPETITIVE_INTELLIGENCE → vendor presence & signals
+What it is
+
+A wide competitive fact table per account × date, with columns grouped like:
+
+Identity: DS, ACCOUNT_ID, ACCOUNT_NAME, ACCOUNT_WEBSITE, ACCOUNT_TYPE, ACCOUNT_SUBTYPE
+Vendor booleans/metrics per data source:
+{VENDOR}_SFDC_ACCOUNT – 0/1 flags based on Salesforce account data
+{VENDOR}_SFDC_OPPORTUNITY – flags based on opps
+{VENDOR}_INTRICATELY – Intricately usage signals
+{VENDOR}_HIRING – hiring/job‑post signals
+Vendors include Snowflake, Databricks, Redshift, BigQuery, Teradata, a bunch of tools (Informatica, Fivetran, Tableau, PowerBI, etc.)
+Why it’s useful
+
+Single place to answer:
+“Does this account use Databricks / Redshift / BigQuery / Fabric / Snowflake?”
+“Are they investing more or less (hiring) in competitor X?”
+“Is it multi‑vendor or single‑vendor?”
+View to create (thin, opinionated slice):
+
+You don’t want all 773 columns in CoCo. Start with a focused subset for the main warehouse vendors and Snowflake itself (extend later):
+
+CREATE OR REPLACE VIEW GTM_BRAIN.PUBLIC.ACCOUNT_COMPETE_V AS
+SELECT
+  DS                      AS as_of_date,
+  ACCOUNT_ID,
+  ACCOUNT_NAME,
+  ACCOUNT_WEBSITE,
+  ACCOUNT_TYPE,
+  ACCOUNT_SUBTYPE,
+
+  -- Snowflake
+  SNOWFLAKE_SFDC_ACCOUNT,
+  SNOWFLAKE_SFDC_OPPORTUNITY,
+  SNOWFLAKE_INTRICATELY,
+  SNOWFLAKE_HIRING,
+
+  -- Databricks
+  DATABRICKS_SFDC_ACCOUNT,
+  DATABRICKS_SFDC_OPPORTUNITY,
+  DATABRICKS_INTRICATELY,
+  DATABRICKS_HIRING,
+
+  -- Redshift
+  AWS_REDSHIFT_SFDC_ACCOUNT,
+  AWS_REDSHIFT_SFDC_OPPORTUNITY,
+  AWS_REDSHIFT_INTRICATELY,
+  AWS_REDSHIFT_HIRING,
+
+  -- BigQuery
+  GCP_BIGQUERY_SFDC_ACCOUNT,
+  GCP_BIGQUERY_SFDC_OPPORTUNITY,
+  GCP_BIGQUERY_INTRICATELY,
+  GCP_BIGQUERY_HIRING
+
+  -- TODO: extend to BI/ETL vendors later if needed
+FROM SNOWHOUSE.SALES.COMPETITIVE_INTELLIGENCE
+QUALIFY DS = MAX(DS) OVER (PARTITION BY ACCOUNT_ID);
+sql
+
+Later, if you want growth metrics (6‑month deltas), add the _JOB_POST_* columns once you identify them in the schema.
+
+4. SNOWHOUSE.SALES.ACCOUNT → full raw “Saleshouse” CRM mirror
+What it is
+
+A very wide mirror of the Salesforce Account object + GTM augmentations (6Sense, AdRoll, partner flags, risk, etc.).
+
+Given ENRICHED_ACCOUNTS_DAILY already condenses a lot, you probably don’t want to expose all 880 columns to CoCo.
+
+Recommended approach
+
+Use ACCOUNT sparingly, for fields that are not present (or are richer) than in ENRICHED_ACCOUNTS_DAILY, e.g., detailed 6Sense scores, AdRoll, specific risk flags.
+For now, create a minimal view you can extend later.
+Example starter:
+
+CREATE OR REPLACE VIEW GTM_BRAIN.PUBLIC.ACCOUNT_RAW_V AS
+SELECT
+  ACCOUNT_ID_C          AS account_id,          -- or ID if present
+  NAME                  AS account_name,
+  ACCOUNT_SEGMENT_C,
+  ACCOUNT_TIER_C,
+  ARR_C,
+  APS_C,
+  ACCOUNT_STRATEGY_C,
+  ACCOUNT_BUYING_STAGE_6_SENSE_C,
+  ACCOUNT_INTENT_SCORE_6_SENSE_C,
+  ACCOUNT_PROFILE_FIT_6_SENSE_C,
+  ADROLL_CLICKS_C,
+  ADROLL_IMPRESSIONS_C,
+  ADROLL_PAGE_VIEWS_C,
+  ANNUAL_REVENUE,
+  BILLING_CITY,
+  BILLING_COUNTRY,
+  ACCOUNT_CURRENTLY_ESCALATED_C,
+  ACCOUNT_RISK_C
+FROM SNOWHOUSE.SALES.ACCOUNT;
+sql
+
+You can keep CoCo primarily pointed at ACCOUNT_ENRICHED_V and only dip into ACCOUNT_RAW_V when needed.
+

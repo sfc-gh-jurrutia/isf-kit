@@ -1,0 +1,8 @@
+[project]
+name = "gtm-pitch"
+version = "2.1.1"
+description = "GTM pitch generator for Snowflake field teams — generates pitch documents with ISF data"
+requires-python = ">=3.11"
+dependencies = [
+    "python-docx>=1.1.0",
+]

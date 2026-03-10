@@ -121,10 +121,10 @@ When planning, match the user's requirements to a known archetype. Each archetyp
 
 | Archetype | Description | Key Skills Activated | Cortex Features |
 |-----------|-------------|---------------------|----------------|
-| **AI Copilot** | Chat-first UI with multi-tool agent, RAG search, analytics | All Cortex skills + React | Agent, Analyst, Search |
-| **Operational Dashboard** | Real-time monitoring with alerts, KPIs, parameter tracking | Data arch, React, **Agent**, deployment | Agent, Analyst |
-| **Predictive Analytics** | ML models with explainability, what-if scenarios | ML models, notebook, data arch, **Agent**, React | Agent, Analyst |
-| **Data Quality Monitor** | Validation rules, anomaly detection, lineage tracking | Data arch, data gen, testing, deployment | Agent (optional) |
+| **AI Copilot** | Chat-first UI with multi-tool agent, RAG search, analytics | Data modeling, data pipeline, all Cortex skills + React | Agent, Analyst, Search |
+| **Operational Dashboard** | Real-time monitoring with alerts, KPIs, parameter tracking | Data modeling, data pipeline, React, **Agent**, deployment | Agent, Analyst |
+| **Predictive Analytics** | ML models with explainability, what-if scenarios | Data modeling, data pipeline, ML models, notebook, **Agent**, React | Agent, Analyst |
+| **Data Quality Monitor** | Validation rules, anomaly detection, lineage tracking | Data arch, data pipeline, data gen, testing, deployment | Agent (optional) |
 | **Self-Service Analytics** | Semantic model for natural-language SQL, no custom UI | Data arch, Cortex Analyst, deployment | Analyst |
 | **Knowledge Assistant** | Document search with RAG, domain knowledge base | Industry context, Cortex Search, Agent, React | Search, Agent |
 
@@ -134,31 +134,47 @@ When planning, match the user's requirements to a known archetype. Each archetyp
 
 ```
 AI Copilot (most skills):
-  data-arch → data-gen → industry-context → cortex-analyst → cortex-search → ml-models → cortex-agent → react-app → deployment
+  data-modeling → data-arch → data-pipeline + data-gen → industry-context → cortex-analyst → cortex-search → ml-models → cortex-agent → react-app → deployment
 
 Operational Dashboard:
-  data-arch → data-gen → cortex-analyst → cortex-agent → react-app → deployment
+  data-modeling → data-arch → data-pipeline + data-gen → cortex-analyst → cortex-agent → react-app → deployment
 
 Predictive Analytics:
-  data-arch → data-gen → ml-models → cortex-analyst (ML view) → cortex-agent → react-app → deployment
+  data-modeling → data-arch → data-pipeline + data-gen → ml-models → cortex-analyst (ML view) → cortex-agent → react-app → deployment
+
+Data Quality Monitor:
+  data-arch → data-pipeline + data-gen → testing → deployment
+
+Self-Service Analytics:
+  data-arch → cortex-analyst → deployment
 
 Knowledge Assistant:
   data-arch → industry-context → cortex-search → cortex-agent → react-app → deployment
 ```
 
+Note: Knowledge Assistant and Self-Service Analytics skip data-modeling and data-pipeline (no star schema / transformation layer needed).
+
 ### Task Parallelism
 
-Within the Cortex phase, several skills are independent and can run in parallel:
+Two fan-out points exist in the pipeline:
 
+**Phase 3 fan-out** (after data architecture):
+```
+                    ┌─── isf-data-pipeline  ───┐
+data-architecture ──┤                          ├──▶ Phase 4
+                    └─── isf-data-generation ──┘
+```
+
+**Phase 4 fan-out** (Cortex phase):
 ```
                     ┌─── isf-cortex-analyst ───┐
-data-generation ───┤                           ├── isf-cortex-agent
+Phase 3 complete ──┤                           ├── isf-cortex-agent
                     ├─── isf-cortex-search  ───┤
                     ├─── isf-python-udf     ───┤
                     └─── isf-ml-models      ───┘
 ```
 
-The agent depends on all Cortex services being ready. Everything upstream of this fan-out is sequential; everything downstream of the fan-in (agent → app → deploy) is also sequential.
+The agent depends on all Cortex services being ready. Everything upstream of each fan-out is sequential; everything downstream of each fan-in is also sequential.
 
 **Record parallel branches in `tasks.md`** — note which tasks can execute concurrently.
 

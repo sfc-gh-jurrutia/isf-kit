@@ -62,6 +62,9 @@ You are an ISF infrastructure diagnostics expert. You troubleshoot both foundati
 - Verify readiness probe: `curl /health` on port 8080
 - Check image repository: `SHOW IMAGE REPOSITORIES`
 - Verify service endpoints: `SHOW ENDPOINTS IN SERVICE <service>`
+- Check network rules: `SHOW NETWORK RULES IN SCHEMA <schema>`
+- Check EAI: `SHOW EXTERNAL ACCESS INTEGRATIONS`
+- Check service role grants: `SHOW GRANTS TO ROLE <service_role>`
 
 ### Layer 7: Project Structure
 
@@ -141,6 +144,16 @@ RECOMMENDED ACTIONS:
 3. Get logs: `SELECT SYSTEM$GET_SERVICE_LOGS('<service>', '0', 'app')`
 4. Verify image exists in repository
 5. Check readiness probe configuration (port 8080, path /health)
+
+### SPCS Container Cannot Connect to Snowflake
+
+**User says**: "Container gets DNS error" or "OAuth token unauthorized" or "Service endpoint not found"
+
+**Actions**:
+1. Get logs: `SELECT SYSTEM$GET_SERVICE_LOGS('<service>', '0', 'app')`
+2. Identify which error in the cascade: DNS failure → endpoint not found → OAuth unauthorized
+3. **Load** `../isf-deployment/references/spcs-connectivity.md` for the resolution sequence
+4. Fix top-down — each error masks the next
 
 ### Queries Running Slowly
 

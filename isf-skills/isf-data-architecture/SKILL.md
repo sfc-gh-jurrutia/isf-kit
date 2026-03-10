@@ -274,6 +274,7 @@ Save to references/entities/{industry}.yaml? [Yes] [New file] [Skip]
 **Inputs:**
 - `isf-context.md` architecture.data_model section (from `isf-spec-curation`)
 - Entity YAML references from `references/entities/` (built-in)
+- `specs/{solution}/data-model-decisions.md` grain/SCD/fact type selections (from `isf-data-modeling`, if run)
 
 **Outputs:**
 - `src/database/migrations/V1.*.sql` — schemachange migration files (consumed by `isf-deployment`)
@@ -294,9 +295,13 @@ Save to references/entities/{industry}.yaml? [Yes] [New file] [Skip]
 
 After migrations are generated and reviewed:
 
+**Continue to** `../isf-data-pipeline/SKILL.md` to generate transformation SQL and orchestration (if transformations are needed beyond DATA_MART views).
+
 **Continue to** `../isf-data-generation/SKILL.md` to generate synthetic seed data from the entity definitions.
 
-If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 3b.
+Steps 3c (pipeline) and 3d (generation) are independent and can proceed in parallel.
+
+If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 3c/3d.
 
 ### Downstream Skill Reference
 
@@ -304,5 +309,6 @@ If running the full ISF pipeline via `isf-solution-engine`, return to the engine
 |--------|------------|
 | Migration files | `isf-deployment` (runs schemachange) |
 | Entity definitions | `isf-data-generation` (creates synthetic data matching schema) |
+| Entity definitions + migrations | `isf-data-pipeline` (generates runnable MERGE/Task/Stream SQL) |
 | Cortex objects | `isf-cortex-agent`, `isf-cortex-analyst`, `isf-cortex-search` |
 | DATA_MART views | `isf-solution-react-app` (API queries these for frontend) |

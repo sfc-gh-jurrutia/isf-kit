@@ -1,7 +1,7 @@
 ---
 name: isf-solution-engine
 description: >
-  Master orchestrator for the ISF Solution Generation pipeline. Chains 22 skills
+  Master orchestrator for the ISF Solution Generation pipeline. Chains 24 skills
   across 8 phases — from unstructured requirements to a fully deployed Snowflake
   solution with presentation materials. Use when: (1) building a complete ISF
   solution end-to-end, (2) starting a new project from requirements or a repo,
@@ -27,7 +27,7 @@ invoke the specific skill directly.
 Phase 1:   INPUT ─────────── isf-spec-curation
 Phase 1.5: DISCOVERY ─────── isf-skill-discovery
 Phase 2:   PLAN ──────────── isf-solution-planning
-Phase 3: DATA ARCHITECTURE  isf-data-architecture → isf-data-generation
+Phase 3: DATA LAYER ─────── isf-data-modeling → isf-data-architecture → isf-data-pipeline + isf-data-generation
 Phase 4: AI / CORTEX ────── isf-industry-context + isf-cortex-analyst + isf-cortex-search + isf-python-udf + isf-ml-models → isf-cortex-agent
 Phase 5: APPLICATION ────── isf-solution-react-app (+ isf-solution-style-guide, isf-notebook)
 Phase 5.5: PRE-DEPLOY GATE isf-solution-react-app/rules + isf-solution-testing gate
@@ -112,21 +112,53 @@ Where should we start?
 
 ---
 
-### Phase 3: Data Architecture & Generation
+### Phase 3: Data Layer
 
-**Goal:** Design the database schema and generate synthetic seed data.
+**Goal:** Design the dimensional model, build the database schema, generate transformation pipelines, and create synthetic seed data.
 
-#### Step 3a: Data Architecture
+#### Step 3a: Data Modeling (if dimensional design needed)
+
+**Load** `../isf-data-modeling/SKILL.md`
+
+**Actions:**
+1. Follow the Kimball four-step design process (SELECT PROCESS → DECLARE GRAIN → IDENTIFY DIMS → IDENTIFY FACTS)
+2. Output: `specs/{solution}/data-model-decisions.md` with grain, fact types, SCD strategies
+
+**⚠️ MANDATORY CHECKPOINT**: Confirm grain declarations and SCD type selections before proceeding.
+
+#### Step 3b: Data Architecture
 
 **Load** `../isf-data-architecture/SKILL.md`
 
 **Actions:**
 1. Follow the data architecture workflow (READ SPEC → LOAD ENTITIES → DESIGN LAYERS → GENERATE MIGRATIONS)
-2. Output: schemachange migration files in `src/database/migrations/`
+2. Consume modeling decisions from Step 3a (if run) for table design and SCD columns
+3. Output: schemachange migration files in `src/database/migrations/`
 
 **⚠️ MANDATORY CHECKPOINT**: Review generated migrations before proceeding.
 
-#### Step 3b: Data Generation
+#### Steps 3c + 3d: Pipeline & Generation (parallel after 3b)
+
+Steps 3c and 3d are independent and can run in parallel (fan-out).
+
+```
+                    ┌── 3c: Data Pipeline  ──┐
+Data Architecture ──┤                        ├──▶ Phase 4
+                    └── 3d: Data Generation ──┘
+```
+
+#### Step 3c: Data Pipeline (if transformations needed beyond DATA_MART views)
+
+**Load** `../isf-data-pipeline/SKILL.md`
+
+**Actions:**
+1. Follow the pipeline workflow (READ SPEC → DESIGN LOADING → GENERATE TRANSFORMS → GENERATE ORCHESTRATION → OUTPUT)
+2. Consume entity YAMLs and migration files from Step 3b; modeling decisions from Step 3a (if run)
+3. Output: transformation SQL in `src/database/transformations/`, orchestration DDL in `src/database/orchestration/`
+
+**⚠️ MANDATORY CHECKPOINT**: Review generated transformation SQL and task DAGs before proceeding.
+
+#### Step 3d: Data Generation
 
 **Load** `../isf-data-generation/SKILL.md`
 
@@ -209,7 +241,7 @@ Output: `src/database/cortex/agent_{persona}.sql` (one per persona), `src/databa
 The longest sequential chain determines minimum timeline:
 
 ```
-Spec Curation → Planning → Data Architecture → Data Generation → [longest Cortex skill] → Agent → App → Deploy → Test
+Spec Curation → Planning → Data Modeling → Data Architecture → Data Pipeline → [longest Cortex skill] → Agent → App → Deploy → Test
 ```
 
 The Cortex fan-out (4a-4d) is where the most time can be saved through parallel execution.
@@ -254,8 +286,9 @@ Use the app backend checklist plus the testing gate to verify:
 3. Persona agent env mappings match generated `agent_{persona}.sql` files
 4. Backend import paths are deployment-safe (`from app...`)
 5. One end-to-end agent smoke call succeeds
+6. External Access Integration created and service role granted object-level privileges
 
-**⚠️ MANDATORY CHECKPOINT**: Do not continue to deployment until all five checks pass. If any check fails, return to the owning skill (planning, Cortex, or app) and fix it there.
+**⚠️ MANDATORY CHECKPOINT**: Do not continue to deployment until all six checks pass. If any check fails, return to the owning skill (planning, Cortex, or app) and fix it there.
 
 **After completion → Continue to Phase 6.**
 
@@ -346,7 +379,9 @@ next_phase: phase_6_deploy
 artifacts:
   spec: true
   plan: true
+  data_model: true
   migrations: true
+  pipeline: true
   cortex_agents: true
   app: true
 gates:
@@ -368,8 +403,10 @@ Update this file after every phase checkpoint. File presence alone is not enough
 | 1.5 - Discovery | `isf-skill-discovery` | `../isf-skill-discovery/` |
 | 2 - Plan | `isf-solution-planning` | `../isf-solution-planning/` |
 | 2 - Plan (style) | `isf-solution-style-guide` | `../isf-solution-style-guide/` |
-| 3 - Data | `isf-data-architecture` | `../isf-data-architecture/` |
-| 3 - Data | `isf-data-generation` | `../isf-data-generation/` |
+| 3 - Data (modeling) | `isf-data-modeling` | `../isf-data-modeling/` |
+| 3 - Data (architecture) | `isf-data-architecture` | `../isf-data-architecture/` |
+| 3 - Data (pipeline) | `isf-data-pipeline` | `../isf-data-pipeline/` |
+| 3 - Data (generation) | `isf-data-generation` | `../isf-data-generation/` |
 | 4 - RAG Corpus | `isf-industry-context` | `../isf-industry-context/` |
 | 4 - Cortex | `isf-cortex-analyst` | `../isf-cortex-analyst/` |
 | 4 - Cortex | `isf-cortex-search` | `../isf-cortex-search/` |
@@ -389,7 +426,7 @@ Update this file after every phase checkpoint. File presence alone is not enough
 
 - ✋ After Phase 1: Approve curated `isf-context.md`
 - ✋ After Phase 2: Approve architecture plan and task breakdown
-- ✋ After Phase 3: Review migrations and verify hidden discovery in seed data
+- ✋ After Phase 3: Review data model decisions, migrations, transformation SQL, and seed data
 - ✋ After Phase 4: Review Cortex objects + per-persona agent test results
 - ✋ After Phase 5: Review application code
 - ✋ After Phase 6: Verify deployment health

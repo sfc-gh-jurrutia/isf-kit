@@ -1,10 +1,10 @@
 # ISF Skills — Comprehensive Workflow Status
 
-Last updated: 2026-02-28
+Last updated: 2026-03-09
 
 ## Workflow Overview
 
-The ISF Solution Generation Engine is a 22-skill workflow that takes customer requirements and produces a fully deployed Snowflake solution with presentation materials.
+The ISF Solution Generation Engine is a 24-skill workflow that takes customer requirements and produces a fully deployed Snowflake solution with presentation materials.
 
 ```mermaid
 flowchart TD
@@ -22,8 +22,10 @@ flowchart TD
     SG[isf-solution-style-guide]
   end
 
-  subgraph arch [Architecture Layer]
+  subgraph arch [Data Layer]
+    DM[isf-data-modeling]
     DA[isf-data-architecture]
+    DPIPE[isf-data-pipeline]
     DG[isf-data-generation]
   end
 
@@ -61,8 +63,11 @@ flowchart TD
   SD -->|"industry-skills.md"| SP
   SG -.->|"tokens + colors"| RA
   SG -.->|"dark theme"| NB
-  SP -->|"plan.md + tasks.md + pipeline-state.yaml"| DA
+  SP -->|"plan.md + tasks.md + pipeline-state.yaml"| DM
+  DM -->|"grain + SCD + fact type decisions"| DA
+  DA -->|"entity YAMLs + migrations"| DPIPE
   DA -->|"entity YAMLs + migrations"| DG
+  DPIPE -->|"transformation SQL"| DP
   DA -->|"schema design"| DP
   DG -->|"seed data"| DP
   SP -->|"UI strategy"| RA
@@ -116,14 +121,16 @@ If no industry skills are found, an empty artifact is produced and the pipeline 
 
 **Key artifact**: Scaffolded project following the ISF standard structure with Makefile, schemachange, SPCS deployment.
 
-### Phase 3: Architecture & Data
+### Phase 3: Data Layer
 
 | Skill | Input | Output |
 |-------|-------|--------|
-| `isf-data-architecture` | `isf-context.md` data_model, entity YAMLs | schemachange migrations in `src/database/migrations/` |
+| `isf-data-modeling` | `isf-context.md` data_model | `data-model-decisions.md` (grain, fact types, SCD strategies) |
+| `isf-data-architecture` | `isf-context.md` data_model, entity YAMLs, modeling decisions | schemachange migrations in `src/database/migrations/` |
+| `isf-data-pipeline` | Entity YAMLs, migrations, modeling decisions | Transformation SQL in `src/database/transformations/`, orchestration in `src/database/orchestration/` |
 | `isf-data-generation` | Entity YAMLs + behavior profiles | Seed Parquet files in `src/data_engine/output/` |
 
-**Key artifacts**: Versioned DDL migrations and pre-generated seed data (seed=42, committed to repo).
+**Key artifacts**: Dimensional model decisions, versioned DDL migrations, transformation/orchestration SQL, and pre-generated seed data (seed=42, committed to repo).
 
 ### Phase 4: Build
 
@@ -168,7 +175,7 @@ If no industry skills are found, an empty artifact is produced and the pipeline 
 
 ## Complete Skill Inventory
 
-### 22 Skills
+### 24 Skills
 
 | # | Skill | Category | Chains To |
 |---|-------|----------|-----------|
@@ -176,24 +183,26 @@ If no industry skills are found, an empty artifact is produced and the pipeline 
 | 1 | `isf-spec-curation` | Input | → `isf-skill-discovery` |
 | 2 | `isf-repo-scanner` | Input | → `isf-spec-curation` |
 | 3 | `isf-skill-discovery` | Discovery | → `isf-solution-planning` |
-| 4 | `isf-solution-planning` | Planning | → `isf-data-architecture` |
+| 4 | `isf-solution-planning` | Planning | → `isf-data-modeling` |
 | 5 | `isf-solution-style-guide` | Planning (cross-cutting) | (loaded by app skills) |
-| 6 | `isf-data-architecture` | Architecture | → `isf-data-generation` |
-| 7 | `isf-data-generation` | Architecture | → Cortex skills (parallel) |
-| 8 | `isf-industry-context` | Architecture (RAG) | → `isf-cortex-search` |
-| 9 | `isf-cortex-analyst` | Build (Cortex) | → `isf-cortex-agent` (parallel) |
-| 10 | `isf-cortex-search` | Build (Cortex) | → `isf-cortex-agent` (parallel) |
-| 11 | `isf-python-udf` | Build (Cortex) | → `isf-cortex-agent` (parallel) |
-| 12 | `isf-ml-models` | Build (ML) | → `isf-cortex-agent` (parallel) |
-| 13 | `isf-cortex-agent` | Build (Cortex) | → `isf-solution-react-app` |
-| 14 | `isf-solution-react-app` | Build (App) | → `isf-deployment` |
-| 15 | `isf-notebook` | Build (ML infra) | → `isf-deployment` |
-| 16 | `isf-deployment` | Deploy | → `isf-solution-testing` |
-| 17 | `isf-solution-testing` | Quality | → `isf-solution-reflection-persona` |
-| 18 | `isf-solution-reflection-persona` | Quality | → `isf-solution-prepublication-checklist` |
-| 19 | `isf-solution-prepublication-checklist` | Quality | → `isf-solution-package` |
-| 20 | `isf-solution-package` | Output | (pipeline complete) |
-| 21 | `isf-diagnostics` | Support | (any phase) |
+| 6 | `isf-data-modeling` | Data (modeling) | → `isf-data-architecture` |
+| 7 | `isf-data-architecture` | Data (architecture) | → `isf-data-pipeline` + `isf-data-generation` (parallel) |
+| 8 | `isf-data-pipeline` | Data (pipeline) | → Phase 4 / Cortex skills |
+| 9 | `isf-data-generation` | Data (generation) | → Phase 4 / Cortex skills |
+| 10 | `isf-industry-context` | Build (RAG) | → `isf-cortex-search` |
+| 11 | `isf-cortex-analyst` | Build (Cortex) | → `isf-cortex-agent` (parallel) |
+| 12 | `isf-cortex-search` | Build (Cortex) | → `isf-cortex-agent` (parallel) |
+| 13 | `isf-python-udf` | Build (Cortex) | → `isf-cortex-agent` (parallel) |
+| 14 | `isf-ml-models` | Build (ML) | → `isf-cortex-agent` (parallel) |
+| 15 | `isf-cortex-agent` | Build (Cortex) | → `isf-solution-react-app` |
+| 16 | `isf-solution-react-app` | Build (App) | → `isf-deployment` |
+| 17 | `isf-notebook` | Build (ML infra) | → `isf-deployment` |
+| 18 | `isf-deployment` | Deploy | → `isf-solution-testing` |
+| 19 | `isf-solution-testing` | Quality | → `isf-solution-reflection-persona` |
+| 20 | `isf-solution-reflection-persona` | Quality | → `isf-solution-prepublication-checklist` |
+| 21 | `isf-solution-prepublication-checklist` | Quality | → `isf-solution-package` |
+| 22 | `isf-solution-package` | Output | (pipeline complete) |
+| 23 | `isf-diagnostics` | Support | (any phase) |
 
 ## Key Artifacts Across the Pipeline
 
@@ -203,6 +212,7 @@ specs/{solution}/
 ├── industry-skills.md           # From isf-skill-discovery (Phase 1.5)
 ├── plan.md                      # From isf-solution-planning
 ├── tasks.md                     # From isf-solution-planning
+├── data-model-decisions.md      # From isf-data-modeling (if run)
 ├── pipeline-state.yaml          # Canonical engine resume state
 └── repomix-output.xml           # From isf-repo-scanner (if Path C)
 
@@ -218,6 +228,11 @@ specs/{solution}/
 │   ├── ui/                      # React + TypeScript + Tailwind
 │   ├── database/
 │   │   ├── migrations/          # schemachange versioned DDL
+│   │   ├── transformations/     # Pipeline transformation SQL (from isf-data-pipeline)
+│   │   │   ├── loading/         # COPY INTO, file formats, stages
+│   │   │   ├── raw_to_atomic/   # MERGE, SCD2, CDC transforms
+│   │   │   └── atomic_to_mart/  # Dynamic Tables, CTAS, procedures
+│   │   ├── orchestration/       # Task DAGs, Streams, monitoring (from isf-data-pipeline)
 │   │   ├── functions/           # Python UDFs
 │   │   ├── procs/               # Stored procedures
 │   │   ├── roles/               # RBAC config

@@ -155,6 +155,7 @@ Run this gate after the app phase and before `isf-deployment`. Deployment should
 | Import paths | Backend starts with deployed package imports (for example `from app...`) |
 | Readiness | `/ready` returns 200 with dependency checks, not just process liveness |
 | Smoke call | One end-to-end agent request succeeds before Phase 6 is considered complete |
+| SPCS connectivity | EAI exists for `SNOWFLAKE_HOST`, network rule targets account host, service role has USAGE on DB/schema/WH |
 
 ### Layer 8: Hidden Discovery
 

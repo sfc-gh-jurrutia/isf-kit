@@ -215,7 +215,13 @@ api/                             # FastAPI backend
    └── Treat plan.md as the only authority for archetype, page template, routes, and persona pages
    └── Read isf-context.md personas for journey mapping
 
-2. SCAFFOLD
+2. DESIGN THINKING
+   └── Run Design Thinking pre-flight from isf-solution-style-guide
+   └── Lock: font pair, color moment, spatial signature, atmosphere, animation recipe
+   └── Load references/typography.md and references/visual-atmosphere.md from style guide
+   └── ⚠️ STOP: Present aesthetic direction for review before scaffolding
+
+3. SCAFFOLD
    └── Init Vite+React+TS: npm create vite@latest src/ui -- --template react-ts
    └── Install Tailwind, configure with style guide tokens
    └── Configure vite.config.ts with API proxy (see below)
@@ -251,7 +257,7 @@ api/                             # FastAPI backend
 
    ⚠️ STOP: Present scaffold plan (pages, components, Cortex integration points) for review before implementing.
 
-3. IMPLEMENT PAGES
+4. IMPLEMENT PAGES
    └── **USE the page template already specified in `plan.md`**
    └── Validate the chosen template against `references/page-templates.md`
    └── **VERIFY all REQUIRED zones** have a component mapped before writing code
@@ -263,7 +269,7 @@ api/                             # FastAPI backend
    └── Apply isf-solution-style-guide tokens
    └── **CHECK** `rules/ux-data-density.md` — count KPIs, tables, charts against minimums
 
-4. IMPLEMENT BACKEND
+5. IMPLEMENT BACKEND
    └── **MUST** copy ALL backend templates (verify each exists in api/app/):
        main.py, snowflake_conn.py, backend_patterns.py, cortex_agent_service.py
    └── **SELECT Snowflake connection** for local development:
@@ -279,7 +285,7 @@ api/                             # FastAPI backend
 
    ⚠️ STOP: Present backend architecture (endpoints, cache strategy, pool config) for review before proceeding.
 
-5. VALIDATE
+6. VALIDATE
    └── npm run build passes
    └── All rules from rules/ checked
    └── Responsive at 375px, 768px, 1024px

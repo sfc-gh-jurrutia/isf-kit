@@ -5,3 +5,8 @@ description = "Snowflake development environment setup for Cursor IDE"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
+
+[tool.uv.workspace]
+members = [
+    "agentic-systems",
+]

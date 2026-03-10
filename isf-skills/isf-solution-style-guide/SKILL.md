@@ -25,7 +25,7 @@ Every generated interface should feel **modern, minimal, and production-ready** 
 3. **One strong color moment.** Dark neutral backgrounds first. Introduce one confident accent (`--snowflake-blue` or persona accent). If a color could appear on a poster, it's probably timeless.
 4. **Spacing is structure.** Use an 8 px grid via design tokens. Tighter gaps group related elements; generous gaps let hero content breathe.
 5. **Accessibility is non-negotiable.** WCAG AA contrast minimums. Focus indicators. Semantic HTML. Keyboard navigation. See the Accessibility section below.
-6. **No generic AI aesthetics.** Avoid: purple-on-white gradients, default system fonts, evenly-spaced card grids with no visual hierarchy, and cookie-cutter layouts. Every interface should feel designed for its specific domain.
+6. **No generic AI aesthetics.** Actively reject: purple-on-white gradients, cliched card grids with uniform spacing, predictable layouts, and cookie-cutter component patterns. Every interface should feel designed for its specific domain. If it could be any dashboard for any company, it's wrong. Bold maximalism and refined minimalism both work -- the key is intentionality, not intensity.
 
 ## Theme Selection
 
@@ -66,6 +66,28 @@ Most ISF solutions use **Data Dashboard** direction. Map from archetypes:
 | Self-Service Analytics | Light | Enterprise |
 | Knowledge Assistant | Light | Modern SaaS |
 | Data Quality Monitor | Dark | Data Dashboard |
+
+## Design Thinking (Pre-Flight)
+
+Before writing any code, commit to a clear aesthetic direction. Run once per solution.
+
+**Derive from `plan.md` or ask the user:**
+
+1. **Purpose**: What problem does this interface solve? Who uses it daily?
+2. **Tone**: Pick a specific flavor within the design direction -- not just "Data Dashboard" but "dense Bloomberg terminal feel" or "calm observatory with breathing data."
+3. **Memorable moment**: The ONE visual element someone will remember. A bold KPI strip with crisis glow? A glass-morphism sidebar? An animated data lineage?
+
+**Then lock these decisions:**
+
+| Decision | Lock before scaffold |
+|----------|---------------------|
+| Font pair | Display + body/mono. See `references/typography.md` |
+| Color moment | Which accent dominates? Where does it appear most? |
+| Spatial signature | Asymmetric sidebar, overlapping cards, generous negative space, or controlled density? |
+| Atmosphere | Subtle dot-grid, noise texture, gradient mesh, or clean solid? See `references/visual-atmosphere.md` |
+| Animation recipe | Page-load sequence, hover states, transition style. See `references/animation-orchestration.md` |
+
+**⚠️ STOPPING POINT**: Present aesthetic direction to user before proceeding to scaffold.
 
 ## Design Tokens (`assets/tokens.css`)
 
@@ -175,8 +197,13 @@ All notebooks and documentation use the **Annotated/Practitioner** style:
 | Contrast too low | Switch to opposite theme, or adjust card backgrounds |
 | Persona accent not showing | Ensure JS sets `--accent` and `--accent-rgb` on `:root` |
 
-## Related Resources
+## References
 
-- `assets/tokens.css` -- canonical design tokens
-- `assets/design-system.css` -- component class library
-- https://component.gallery/ -- UI pattern inspiration
+| File | Purpose | When Loaded |
+|------|---------|-------------|
+| `references/typography.md` | Font pairings per design direction, loading patterns | During Design Thinking pre-flight |
+| `references/animation-orchestration.md` | Recipes for combining the 18 animations into cohesive sequences | During implementation |
+| `references/visual-atmosphere.md` | Texture, background, and depth patterns per direction | During Design Thinking pre-flight |
+| `references/snowflake_color_scheme.md` | Snowflake brand color reference | When selecting palette |
+| `assets/tokens.css` | Canonical design tokens | Always -- copied into project |
+| `assets/design-system.css` | Component class library | Always -- copied into project |

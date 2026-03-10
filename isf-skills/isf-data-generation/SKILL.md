@@ -293,6 +293,8 @@ After data is generated and validated:
 
 If Cortex Analyst is not needed, **continue to** `../isf-cortex-search/SKILL.md` (for RAG), `../isf-cortex-agent/SKILL.md` (for agent), or `../isf-solution-react-app/SKILL.md` (for the application layer) — whichever is next per the task list.
 
+If `isf-data-pipeline` was run in parallel (Step 3c), its transformation and orchestration SQL should be deployed alongside seed data during Phase 6.
+
 If running the full ISF pipeline via `isf-solution-engine`, return to the engine for Phase 4.
 
 ### Downstream Skill Reference
