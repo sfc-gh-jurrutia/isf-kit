@@ -1,23 +1,42 @@
-# ISF Core Data — SUPPORT.ISF
+# ISF Core Data — Account Lookup & Industry Mapping
 
-Reference queries for ISF industry content. All queries use `snowflake_sql_execute`.
+Reference queries for Step 1: account resolution and industry context. All queries use `snowflake_sql_execute`.
 
 **ISF_BASE:** `https://kcxcbaixd-sfcogsops-snowhouse-aws-us-west-2.snowflakecomputing.app`
 
 ## Account Lookup
 
+### Primary: ENRICHED_ACCOUNTS_DAILY
+
+The main account dimension. Returns ARR, APS, Fortune rank, firmographics, territory model.
+
 ```sql
-SELECT SALESFORCE_ACCOUNT_ID, SALESFORCE_ACCOUNT_NAME, INDUSTRY, SUB_INDUSTRY,
-       ACCOUNT_TIER, SEGMENT, SALESFORCE_OWNER_NAME AS AE_NAME,
-       LEAD_SALES_ENGINEER_NAME AS SE_NAME, DM, RVP, GVP,
-       TECH_STACK, IS_G2K, GLOBAL_2000_RANK, TYPE, SUB_TYPE
-FROM SALES.RAVEN.D_SALESFORCE_ACCOUNT_CUSTOMERS
-WHERE LOWER(SALESFORCE_ACCOUNT_NAME) LIKE LOWER('%<company>%')
-ORDER BY ACCOUNT_TIER ASC NULLS LAST
+SELECT ACCOUNT_ID, ACCOUNT_NAME, ACCOUNT_TYPE, ACCOUNT_STATUS,
+  REP_NAME AS ae_name, RVP, GVP, DM, REGION, TERRITORY, GEO,
+  NAMED_ACCOUNT, ARR, APS, INDUSTRY, SUBINDUSTRY,
+  COUNTRY, STATE, ANNUAL_REVENUE, DNB_EMPLOYEE_COUNT,
+  FORTUNE_1000_RANK, ES_WEBSITE AS website
+FROM SNOWHOUSE.SALES.ENRICHED_ACCOUNTS_DAILY
+WHERE LOWER(ACCOUNT_NAME) LIKE LOWER('%<company>%')
+QUALIFY DS = MAX(DS) OVER (PARTITION BY ACCOUNT_ID)
+ORDER BY ARR DESC NULLS LAST
 LIMIT 5
 ```
 
-If not found in customers, check prospects:
+### Supplementary: RAVEN (SE name, tier, G2K, tech stack)
+
+Run after the primary lookup using the resolved ACCOUNT_ID. Adds fields not in ENRICHED_ACCOUNTS_DAILY.
+
+```sql
+SELECT SALESFORCE_ACCOUNT_ID, LEAD_SALES_ENGINEER_NAME AS se_name,
+       ACCOUNT_TIER, IS_G2K, GLOBAL_2000_RANK, TECH_STACK, SEGMENT
+FROM SALES.RAVEN.D_SALESFORCE_ACCOUNT_CUSTOMERS
+WHERE SALESFORCE_ACCOUNT_ID = '<account_id>'
+```
+
+### Fallback: Prospects
+
+If not found in either source above, check prospects:
 ```sql
 SELECT SALESFORCE_ACCOUNT_ID, SALESFORCE_ACCOUNT_NAME, INDUSTRY, SUB_INDUSTRY,
        SEGMENT, SALESFORCE_OWNER_NAME AS AE_NAME,
@@ -28,7 +47,46 @@ WHERE LOWER(SALESFORCE_ACCOUNT_NAME) LIKE LOWER('%<company>%')
 LIMIT 5
 ```
 
-## Map SFDC Industry to ISF Industry
+## Map Account to ISF Industry
+
+### Step 1: SOT Industry Resolution (preferred)
+
+The canonical source-of-truth industry label per account. Use the ACCOUNT_ID from the lookup above.
+
+```sql
+SELECT ACCOUNT_ID, SOT_INDUSTRY AS industry_name,
+       SOT_SUBINDUSTRY AS subindustry_name, SOURCE_OF_TRUTH
+FROM SNOWHOUSE.SALES.INDUSTRY
+WHERE ACCOUNT_ID = '<account_id>'
+QUALIFY DS = MAX(DS) OVER (PARTITION BY ACCOUNT_ID)
+```
+
+### Step 2: SOT_INDUSTRY → ISF INDUSTRY_ID Bridge
+
+Use this static mapping to convert the SOT_INDUSTRY value to an ISF parent INDUSTRY_ID:
+
+| SOT_INDUSTRY | ISF INDUSTRY_ID |
+|---|---|
+| Healthcare & Life Sciences | IND-HLS |
+| Financial Services | IND-FSI |
+| Retail & Consumer Goods | IND-RET |
+| Media & Entertainment | IND-MED |
+| Manufacturing & Industrial | IND-MFG |
+| Technology | IND-TECH |
+| Telecom | IND-TEL |
+| Public Sector | IND-PUB |
+| Travel & Hospitality | IND-TRV |
+| Hotels and Accommodations | IND-TRV |
+| Airlines, Car, Rail, Cruise, Bus | IND-TRV |
+| Activities, Parks, Attractions | IND-TRV |
+| QSR, Restaurants & Food Service | IND-TRV |
+| Travel Tech, OTAs and TMCs | IND-TRV |
+| Other Travel and Hospitality | IND-TRV |
+| Consulting & Professional Services | *(no ISF parent — ask user for closest industry)* |
+
+### Step 3: Fallback — Fuzzy ISF Lookup
+
+Only use if SOT_INDUSTRY is NULL (rare). Match the SFDC INDUSTRY string against ISF:
 
 ```sql
 SELECT INDUSTRY_ID, INDUSTRY_NAME, PARENT_INDUSTRY_ID, DESCRIPTION
@@ -43,7 +101,7 @@ Always resolve to PARENT `INDUSTRY_ID` for content queries (ISF content is tagge
 
 ```sql
 SELECT INDUSTRY_ID, INDUSTRY_NAME, DESCRIPTION, MARKET_TRENDS, SNOWFLAKE_POV, AI_BRIEF,
-       'https://kcxcbaixd-sfcogsops-snowhouse-aws-us-west-2.snowflakecomputing.app/industry/' || INDUSTRY_ID as ISF_LINK
+       '{ISF_BASE}/industry/' || INDUSTRY_ID as ISF_LINK
 FROM SUPPORT.ISF.INDUSTRIES
 WHERE INDUSTRY_ID = '<parent_industry_id>'
 ```
@@ -54,147 +112,3 @@ SELECT INDUSTRY_ID, INDUSTRY_NAME, DESCRIPTION
 FROM SUPPORT.ISF.INDUSTRIES
 WHERE PARENT_INDUSTRY_ID = '<parent_industry_id>'
 ```
-
-## Top Solutions for Industry
-
-```sql
-SELECT s.SOLUTION_ID, s.SOLUTION_NAME, s.VALUE_POSITIONING,
-       s.KEY_DIFFERENTIATORS, s.BUSINESS_CHALLENGES, s.SUCCESS_METRICS,
-       s.SNOWFLAKE_PRODUCTS, s.TYPICAL_INTEGRATIONS, s.STATUS,
-       s.HAS_ACCELERATOR,
-       'https://kcxcbaixd-sfcogsops-snowhouse-aws-us-west-2.snowflakecomputing.app/solution/' || s.SOLUTION_ID as ISF_LINK
-FROM SUPPORT.ISF.SOLUTIONS s
-WHERE s.INDUSTRY_ID = '<parent_industry_id>'
-  AND s.STATUS = 'Published'
-ORDER BY s.SOLUTION_NAME
-```
-
-64 total solutions. Include VALUE_POSITIONING and KEY_DIFFERENTIATORS in pitch output.
-
-### Solution Link Rules
-
-Every solution in output MUST include clickable links:
-
-1. **ISF Link** (always available): `{ISF_BASE}/solution/{SOLUTION_ID}` — internal ISF detail page with full solution brief, architecture, competitive positioning
-2. **Snowflake Products referenced**: List the SNOWFLAKE_PRODUCTS column — these map to product documentation pages
-3. **Accelerator link** (if HAS_ACCELERATOR = true): Note that a solution accelerator is available in ISF
-
-Format in output:
-```
-**[{Solution Name}]({ISF_LINK})** — {VALUE_POSITIONING}
-Products: {SNOWFLAKE_PRODUCTS} | [View full solution brief]({ISF_LINK})
-```
-
-## Solution Competitive Landscape (Enrichment — sparse data)
-
-Solution-level competitive positioning. **Note:** Only populated for select industries (check row count before rendering).
-```sql
-SELECT sl.SOLUTION_ID, s.SOLUTION_NAME, sl.COMPETITOR_PLATFORM, sl.COMPETITOR_PRODUCTS,
-       sl.COEXIST_STRATEGY, sl.REPLACE_STRATEGY, sl.RATIONALIZE_STRATEGY
-FROM SUPPORT.ISF.SOLUTION_LANDSCAPE sl
-JOIN SUPPORT.ISF.SOLUTIONS s ON sl.SOLUTION_ID = s.SOLUTION_ID
-WHERE s.INDUSTRY_ID = '<parent_industry_id>'
-  AND s.STATUS = 'Published'
-ORDER BY s.SOLUTION_NAME
-```
-
-**Tables that do NOT exist or are empty (as of March 2026):**
-- `SOLUTION_ARCHITECTURE` — does not exist. `SOLUTION_ARCHITECTURE_DIAGRAMS` exists but contains binary images, not queryable text columns.
-- `OUTCOMES` — table exists but has 0 rows. Do NOT query.
-
-## Top Use Cases for Industry
-
-```sql
-SELECT uc.USECASE_ID, uc.NAME, uc.DESCRIPTION, uc.MATURITY_LEVEL, uc.INTENDED_OUTCOMES,
-       uc.SUCCESS_METRICS, uc.TYPICAL_INTEGRATIONS,
-       'https://kcxcbaixd-sfcogsops-snowhouse-aws-us-west-2.snowflakecomputing.app/usecase/' || uc.USECASE_ID as ISF_LINK
-FROM SUPPORT.ISF.USE_CASES uc
-JOIN SUPPORT.ISF.USECASE_INDUSTRY ui ON uc.USECASE_ID = ui.USECASE_ID
-WHERE ui.INDUSTRY_ID = '<parent_industry_id>'
-ORDER BY uc.NAME
-```
-
-Enrichment columns (for optional "use case maturity" section):
-- `SUCCESS_METRICS` — measurable KPIs for this use case
-- `TYPICAL_INTEGRATIONS` — systems/tools commonly integrated
-- `MATURITY_LEVEL` — L1 Emerging / L2 Validated / L3 Foundational
-
-## Top Pain Points for Industry
-
-**PRIMARY (view-first, faster):**
-```sql
-SELECT * FROM SUPPORT.ISF.VW_AE_PAIN_USECASE_BY_INDUSTRY
-WHERE INDUSTRY_ID = '<parent_industry_id>'
-```
-Returns full Pain → Use Case → Solution chain in one query.
-
-**FALLBACK (if view unavailable or need specific columns):**
-```sql
-SELECT p.PAIN_ID, p.TITLE, p.DESCRIPTION, p.SEVERITY,
-       p.SIGNALS_VERBATIMS, p.FREQUENCY, p.IMPACTED_METRICS,
-       'https://kcxcbaixd-sfcogsops-snowhouse-aws-us-west-2.snowflakecomputing.app/pain/' || p.PAIN_ID as ISF_LINK
-FROM SUPPORT.ISF.PAINS p
-JOIN SUPPORT.ISF.PAIN_INDUSTRY pi ON p.PAIN_ID = pi.PAIN_ID
-WHERE pi.INDUSTRY_ID = '<parent_industry_id>'
-  AND p.ACTIVE = TRUE
-ORDER BY p.SEVERITY DESC
-```
-
-Enrichment columns (for optional "buyer signals" section):
-- `SIGNALS_VERBATIMS` — actual buyer quotes phrasing this pain
-- `FREQUENCY` — how often this pain is mentioned
-- `IMPACTED_METRICS` — business metrics affected by this pain
-
-## Customer Stories for Industry
-
-```sql
-SELECT st.STORY_ID, st.TITLE, st.CUSTOMER_NAME, st.BUSINESS_CHALLENGES,
-       st.NARRATIVE, st.OUTCOMES_SUMMARY, st.AI_BRIEF,
-       st.REFERENCE_URL, st.REFERENCES_LINKS,
-       st.CONFIDENTIALITY_LEVEL, st.PUBLICATION_STATUS, st.ARCHITECTURE_SUMMARY,
-       st.ANONYMIZED, st.ASSET_LEVEL,
-       'https://kcxcbaixd-sfcogsops-snowhouse-aws-us-west-2.snowflakecomputing.app/story/' || st.STORY_ID as ISF_LINK
-FROM SUPPORT.ISF.STORIES st
-WHERE st.INDUSTRY_ID = '<parent_industry_id>'
-  AND st.PUBLICATION_STATUS = 'Published'
-ORDER BY st.TITLE
-```
-
-### Story Shareability Columns
-
-**Note (March 2026):** `CONFIDENTIALITY_LEVEL` and `ASSET_LEVEL` are currently NULL for most industries. `ANONYMIZED` is populated (TRUE/FALSE). Until shareability columns are populated, the only actionable signal is:
-- If `ANONYMIZED = TRUE`, use story but omit customer name (show anonymized title instead)
-- Keep `CONFIDENTIALITY_LEVEL`, `ASSET_LEVEL` in the query — they will become useful once populated
-
-### Story Link Rules
-
-Every story in output MUST include clickable links. Provide ALL available links:
-
-1. **ISF Link** (always available): `{ISF_BASE}/story/{STORY_ID}` — internal ISF detail page
-2. **Public Case Study** (if REFERENCE_URL is populated): direct link to snowflake.com case study
-3. **Public Search** (if REFERENCE_URL is empty and customer is NOT anonymized): run `web_search` for `site:snowflake.com "{CUSTOMER_NAME}" case study customer story` to find public case study URL
-4. **Snowflake Customer Page**: `https://www.snowflake.com/en/customers/all-customers/case-study/{customer-name-slug}/` — check if exists via web_search
-
-Format in output:
-```
-**[{Story Title}]({ISF_LINK})** — {CUSTOMER_NAME}: {OUTCOMES_SUMMARY}
-Links: [ISF]({ISF_LINK}) | [Public Case Study]({REFERENCE_URL or found URL}) | [Compass]({compass_url if known})
-```
-
-If no public URL found, show only ISF link. Never show broken links.
-
-## Pre-Joined Views
-
-### Pain → Use Case → Solution by Industry
-```sql
-SELECT * FROM SUPPORT.ISF.VW_AE_PAIN_USECASE_BY_INDUSTRY
-WHERE INDUSTRY_ID = '<parent_industry_id>'
-```
-
-### Solution Overview
-```sql
-SELECT * FROM SUPPORT.ISF.VW_SOLUTIONS_OVERVIEW
-WHERE INDUSTRY_ID = '<parent_industry_id>'
-```
-
-Use VW_SOLUTIONS_OVERVIEW as a faster alternative to the raw SOLUTIONS query when you only need the overview (includes counts of use cases, stories, pain points per solution).

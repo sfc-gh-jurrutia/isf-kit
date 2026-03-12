@@ -1,6 +1,6 @@
 # Competitive Intelligence for Pitch
 
-Multi-source competitive data for positioning Snowflake against competitors.
+Multi-source competitive data for positioning Snowflake against competitors. All sources below are stable production tables.
 
 ## Tech Stack from Technographics
 
@@ -32,7 +32,12 @@ FROM SALES.RAVEN.DIM_3P_ACCOUNT_VIEW
 WHERE SALESFORCE_ACCOUNT_ID = '<sfdc_account_id>'
 ```
 
-TECH_STACK_LIST is an ARRAY. 139K accounts have tech stack data.
+TECH_STACK_LIST is an ARRAY. When analyzing it, look for:
+- **Data platforms:** Databricks, Redshift, BigQuery, Teradata, Oracle, SQL Server, Fabric
+- **AI/ML:** SageMaker, Vertex AI, Azure ML, MLflow, Kubeflow
+- **Vector DBs:** Pinecone, Qdrant, Weaviate, Faiss, Milvus, ChromaDB *(multiple = active GenAI exploration)*
+- **BI:** Tableau, Power BI, Looker, Qlik, ThoughtSpot
+- **ETL/ELT:** Fivetran, dbt, Informatica, Matillion, Airbyte
 
 ## SFDC Competitor Fields on Opportunities
 
@@ -43,18 +48,6 @@ FROM FIVETRAN.SALESFORCE.OPPORTUNITY o
 WHERE o.ACCOUNT_ID = '<sfdc_account_id>'
   AND o.IS_CLOSED = FALSE
 ORDER BY o.CLOSE_DATE ASC
-```
-
-## Industry Loss Patterns
-
-```sql
-SELECT COMPETITORS, COUNT(*) as loss_cnt, AVG(AMOUNT) as avg_deal_size,
-       LISTAGG(DISTINCT LOST_REASON, '; ') as common_reasons
-FROM TEMP.DEAL_INTELLIGENCE.COMPETITIVE_LOSSES
-WHERE INDUSTRY = '<industry>'
-GROUP BY COMPETITORS
-ORDER BY loss_cnt DESC
-LIMIT 5
 ```
 
 ## ISF Solution Competitive Positioning
@@ -77,7 +70,33 @@ Key competitive fields per solution:
 - `REPLACE_STRATEGY` — how to displace competitor
 - `RATIONALIZE_STRATEGY` — how to consolidate onto Snowflake
 
-## Win/Loss Interviews (Industry Level)
+## Presenting Competitive Context in Pitch
+
+Structure as:
+1. **Their Current Stack** — aggregate from technographics + 3P + SFDC opps
+2. **Key Competitor** — primary threat and their strengths
+3. **Our Advantage** — from ISF SNOWFLAKE_ADVANTAGE
+4. **Recommended Approach** — coexist/replace/rationalize based on signals
+
+---
+
+## Optional Enrichment (unstable sources)
+
+These tables live in personal/team TEMP schemas and may be dropped without notice. Use only as supplementary enrichment — never depend on them for core pitch logic. Skip silently if unavailable.
+
+### Industry Loss Patterns (TEMP — unstable)
+
+```sql
+SELECT COMPETITORS, COUNT(*) as loss_cnt, AVG(AMOUNT) as avg_deal_size,
+       LISTAGG(DISTINCT LOST_REASON, '; ') as common_reasons
+FROM TEMP.DEAL_INTELLIGENCE.COMPETITIVE_LOSSES
+WHERE INDUSTRY = '<industry>'
+GROUP BY COMPETITORS
+ORDER BY loss_cnt DESC
+LIMIT 5
+```
+
+### Win/Loss Interviews (TEMP — unstable)
 
 ```sql
 SELECT ACCOUNT_NAME, COMPETITORS, INCUMBANT, WORKLOADS,
@@ -88,15 +107,4 @@ ORDER BY WIN_LOSS_RESULT
 LIMIT 10
 ```
 
-Key fields for pitch:
-- `TOP_REASONS` — why we won or lost (use wins for proof, losses to preempt objections)
-- `SALES_STRATEGY` — what worked
-- `GTM_GAPS` — what to avoid
-
-## Presenting Competitive Context in Pitch
-
-When including competitive positioning in a pitch, structure as:
-1. **Their Current Stack** — aggregate from technographics + 3P + SFDC
-2. **Key Competitor** — primary threat and their strengths
-3. **Our Advantage** — from ISF SNOWFLAKE_ADVANTAGE
-4. **Recommended Approach** — coexist/replace/rationalize based on signals
+⚠️ Both TEMP tables above are best-effort. If they error, skip and rely on stable sources above.

@@ -9,7 +9,7 @@ The following is the CANONICAL output structure. Every pitch MUST follow this ex
 ```
 ## 🎯 Pitch: {Company Name} ({Industry})
 
-**Account:** {Tier} | {Segment} | AE: {AE} | SE: {SE} | GVP: {GVP} | SFDC: {SFDC_ID} | {Existing/Prospect}
+**Account:** {Tier} | {Segment} | AE: {AE} | SE: {SE} | GVP: {GVP} | ARR: {ARR} | Fortune: {rank} | {Existing/Prospect}
 
 ### Why Snowflake for {Company}
 Top 3 reasons synthesized from industry trends + company context + web research:
@@ -27,19 +27,15 @@ Top 3 reasons synthesized from industry trends + company context + web research:
 
 Links: [Product Page](...) | [Blog](...) | [Compass](...) | [Docs](...) | [Try Free](...)
 
-### Top 3 Solutions
-1. **[{Solution Name}]({ISF_BASE}/solution/{SOLUTION_ID})** — {value positioning} | Products: {products} | [View full brief]({ISF_BASE}/solution/{SOLUTION_ID})
-2. **[{Solution Name}]({ISF_BASE}/solution/{SOLUTION_ID})** — {value positioning} | Products: {products} | [View full brief]({ISF_BASE}/solution/{SOLUTION_ID})
-3. **[{Solution Name}]({ISF_BASE}/solution/{SOLUTION_ID})** — {value positioning} | Products: {products} | [View full brief]({ISF_BASE}/solution/{SOLUTION_ID})
+### Top 3 Recommended Solutions & Use Cases
+1. **[{Solution/Use Case Name}]({ISF_LINK or n/a})** — {value positioning or business impact} | Products: {products if ISF} | [View brief]({link if ISF})
+2. **[{Solution/Use Case Name}]({ISF_LINK or n/a})** — {value positioning or business impact} | Products: {products if ISF} | [View brief]({link if ISF})
+3. **[{Solution/Use Case Name}]({ISF_LINK or n/a})** — {value positioning or business impact} | Products: {products if ISF} | [View brief]({link if ISF})
 
 ### Top 3 Pain Points to Lead With
 1. **[{Pain}]({ISF_BASE}/pain/{PAIN_ID})** — {description}
 2. **[{Pain}]({ISF_BASE}/pain/{PAIN_ID})** — {description}
 3. **[{Pain}]({ISF_BASE}/pain/{PAIN_ID})** — {description}
-
-### Competitive Positioning
-**Primary Competitors:** {names with context} | **Approach:** {coexist/replace/rationalize}
-**Our Edge:** {specific differentiation}
 
 ### Proof Point
 **[{Story Title}]({ISF_BASE}/story/{STORY_ID})** — {CUSTOMER_NAME}: {OUTCOMES_SUMMARY}
@@ -72,25 +68,29 @@ Links: [ISF Detail]({ISF_LINK}) | [Public Case Study]({URL})
 {SNOWFLAKE_POV}
 [View {Industry} in ISF]({ISF_BASE}/industry/{INDUSTRY_ID})
 
-### All Recommended Solutions
-| Solution | Value Positioning | Products | Links |
-|----------|------------------|----------|-------|
-| **[{Name}]({ISF_LINK})** | {value} | {products} | [View full brief]({ISF_LINK}) |
-{repeat for all solutions — 4-6 rows typically}
+### All Recommended Solutions & Use Cases
+| Solution / Use Case | Value Positioning | Top Capabilities | Source | Links |
+|---------------------|------------------|-----------------|--------|-------|
+| **[{ISF Solution}]({ISF_LINK})** | {value positioning} | {2-3 GA features with docs links} | ISF | [View brief]({ISF_LINK}) |
+| {RAVEN Use Case Pattern} | {business impact} | — | RAVEN | {reference accounts} |
+{ISF rows have features, accelerators, and ISF links. RAVEN rows have business impact and reference accounts. Unified list ranked by relevance.}
 
-### Competitive Deep Dive
-**Current Tech Stack:** ...
-**Competitor Signals:** ...
-**Displacement Strategy:**
-- Coexist: ...
-- Rationalize: ...
-- Our Edge: ...
+### Customer Stories (from evidence_pool.json — unified ISF + RAVEN)
+| Story | Customer | Outcomes | Source | ACV | Links |
+|-------|----------|----------|--------|-----|-------|
+| {title} | {customer_name} | {outcomes} | ISF | — | [{detail_link}]({detail_link}) \| [Public]({public_url}) |
+| {title} | {inferred} | {outcomes} | RAVEN | {acv} | [Public]({public_url}) |
+{Ranked by the evidence subagent. Include problem_challenge and snowflake_solution when available from RAVEN rows.}
 
-### Customer Stories
-| Story | Customer | Key Outcomes | Links |
-|-------|----------|--------------|-------|
-| **[{Title}]({ISF_LINK})** | {customer} | {outcomes} | [ISF]({ISF_LINK}) \| [Public]({URL}) |
-{repeat for all stories}
+### Assets & Accelerators (conditional — only when SOLUTION_ACCELERATORS returns rows)
+| Solution | Asset | Type | Link |
+|----------|-------|------|------|
+| {Solution Name} | {Accelerator Name} | {Quickstart / Guide / Demo} | [{URL}]({URL}) |
+
+### Account Initiatives (conditional — from evidence_pool.json account_initiatives array)
+| Initiative | Topic | Description |
+|-----------|-------|-------------|
+| {use_case_name} | {topic} | {description} |
 
 ### CoCo CLI Pitch Detail
 **Pillar 1 — Faster Innovation:**
@@ -133,6 +133,10 @@ Or sign up at https://signup.snowflake.com/cortex-code ($40 free credits for 30 
 |-------|------|--------|-------------|----------------------|
 | {skill_name} | {BUNDLED/Marketplace} | {Innovation/Awareness/Enterprise} | {description} | {1-line customer relevance} |
 {Minimum 5 skills. NEVER omit this section.}
+
+---
+*Data Sources: {list sources used, e.g., ISF, RAVEN Quality Stories, RAVEN Catalog, Web Research}*
+*Generated: {date}*
 ```
 
 ## Key Patterns to Replicate
@@ -145,3 +149,7 @@ Or sign up at https://signup.snowflake.com/cortex-code ($40 free credits for 30 
 6. **CoCo quotes include relevance note AND source link** — e.g., "(regulated industry parallel)" + `| [Source](url)`. Source URLs are in `references/coco_cli.md` Quote Sources table.
 7. **Competitive section names executives** — e.g., "Lavu comes from Nike/Kohl's with deep AWS experience"
 8. **Word doc is AUTO-GENERATED every run** — use the reusable module at `<SKILL_DIRECTORY>/scripts/generate_pitch_docx.py`. Call `generate_pitch_docx(data, output_path)` with the assembled pitch data dict. Uses proper OOXML hyperlinks (blue, underlined, no raw URLs). Always confirm file path and size at the end of chat output.
+9. **Top Capabilities cite specific GA features** with docs links, not generic claims. Sourced from SOLUTION_FEATURES → PLATFORM_FEATURES.
+10. **Accelerator links replace boolean HAS_ACCELERATOR** with direct URLs to quickstarts, demo kits, and sales plays.
+11. **Account Initiatives only appear when evidence_pool.json has account_initiatives entries.** Omit if empty.
+12. **Customer Stories are a unified pool** from the evidence subagent — ISF and RAVEN merged, ranked, with public URLs enriched via web search. The Source column shows provenance.
